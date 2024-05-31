@@ -19,9 +19,9 @@ import pandas as pd
 
 
 def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
-        
+
     path = f'{os.getcwd()}\\data\\' if path is None else path
-    
+
     # Load msci country index return series
     df = pd.read_csv(f'{path}msci_country_indices.csv',
                     sep=';',
@@ -31,7 +31,7 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
     df.index = pd.to_datetime(df.index, format='%d/%m/%Y')
     series_id = df.columns[0:n]
     X = df[series_id]
-    
+
     # Load msci world index return series
     y = pd.read_csv(f'{path}NDDLWI.csv',
                          sep=';',
@@ -39,24 +39,24 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
                          header=0,
                          parse_dates=True)
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
-    
+
     data = {'X': X, 'y': y}
     return data
-        
-        
-        
+
+
+
 def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
-        
+
     path = f'{os.getcwd()}\\data\\' if path is None else path
-    
+
     # Load U.S. security data
     df_secd = None
     # ...
-    
+
     # Load U.S. stock characteristics (fundamentals) data
     # ...
     df_funda = None
-    
+
     # Load S&P 500 index return series
     y = pd.read_csv(f'{path}SPTR.csv',
                          sep=';',
@@ -64,7 +64,7 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
                          header=0,
                          parse_dates=True)
     y.index = pd.to_datetime(yearfirst=y.index, format='%d/%m/%Y')
-    
+
     data = {'df_secd': df_secd, 'df_funda': df_funda, 'y': y}
     return data
 
@@ -111,8 +111,7 @@ def isPD(B):
         return True
     except np.linalg.LinAlgError:
         return False
-    
-    
-    
-    
-    
+
+
+
+

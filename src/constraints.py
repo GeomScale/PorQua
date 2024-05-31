@@ -30,10 +30,10 @@ def match_arg(x, lst):
     return [el for el in lst if x in el][0]
 
 
-def box_constraint(box_type = "LongOnly", 
-                   lower = None, 
+def box_constraint(box_type = "LongOnly",
+                   lower = None,
                    upper = None) -> dict:
-    
+
     box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
 
     if box_type == "Unbounded":
@@ -67,10 +67,10 @@ def box_constraint(box_type = "LongOnly",
     return ans
 
 
-def linear_constraint(Amat = None, 
-                      sense = "=", 
-                      rhs = float("inf"), 
-                      index_or_name = None, 
+def linear_constraint(Amat = None,
+                      sense = "=",
+                      rhs = float("inf"),
+                      index_or_name = None,
                       a_values = None) -> dict:
     ans = {'Amat': Amat,
            'sense': sense,
@@ -89,7 +89,7 @@ def linear_constraint(Amat = None,
 # --------------------------------------------------------------------------
 
 class Constraints:
-    
+
     def __init__(self, selection = "NA") -> None:
 
         if not all(isinstance(item, str) for item in selection):
@@ -98,15 +98,15 @@ class Constraints:
         self.budget = {'Amat': pd.DataFrame(), 'sense': None, 'rhs': None}
         self.box = {'type': 'NA', 'lower': pd.Series(), 'upper': pd.Series()}
         self.linear = {'Amat': pd.DataFrame(), 'sense': pd.Series(), 'rhs': pd.Series()}
-        self.l1 = {}   
+        self.l1 = {}
         return None
-       
+
     def __str__(self) -> str:
         txt = ''
         for key in vars(self).keys():
             txt = txt + f'\n{key}:\n\n{vars(self)[key]}\n'
         return txt
-    
+
     def add_budget(self, rhs = 1, sense = '=') -> None:
         if self.budget.get('rhs') is not None:
             print("Existing budget constraint is overwritten\n")
@@ -115,15 +115,15 @@ class Constraints:
                        'sense': sense,
                        'rhs': rhs}
         return None
-    
-    def add_box(self, 
-                box_type = "LongOnly", 
-                lower = None, 
+
+    def add_box(self,
+                box_type = "LongOnly",
+                lower = None,
                 upper = None) -> None:
 
         box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
         boxcon = box_constraint(box_type = box_type,
-                                lower = lower, 
+                                lower = lower,
                                 upper = upper)
 
         if np.isscalar(boxcon['lower']):
@@ -136,30 +136,30 @@ class Constraints:
 
         self.box = boxcon
         return None
-    
+
     def add_linear(self,
                    Amat: pd.DataFrame() = None,
                    a_values: pd.Series() = None,
                    sense: pd.Series() = None,
                    rhs: pd.Series() = None,
-                   name: str = None) -> None:        
+                   name: str = None) -> None:
         if Amat is None:
             if a_values is None:
                 raise ValueError("Either 'Amat' or 'a_values' must be provided.")
-            else:         
+            else:
                 Amat = pd.DataFrame(a_values).T.reindex(columns = self.selection).fillna(0)
                 if name is not None:
-                    Amat.index = [name]             
+                    Amat.index = [name]
         if not self.linear['Amat'].empty:
             Amat = pd.concat([self.linear['Amat'], Amat], axis = 0, ignore_index = False)
             sense = pd.concat([self.linear['sense'], sense], axis = 0, ignore_index = False)
             rhs = pd.concat([self.linear['rhs'], rhs], axis = 0, ignore_index = False)
-        self.linear = {'Amat': Amat, 
-                      'sense': sense, 
+        self.linear = {'Amat': Amat,
+                      'sense': sense,
                       'rhs': rhs}
         return None
-    
-    def add_l1(self, 
+
+    def add_l1(self,
                name: str,
                x0 = None,
                rhs = None,
@@ -175,7 +175,7 @@ class Constraints:
             con[key] = value
         self.l1[name] = con
         return None
-    
+
     def to_GhAb(self, lbub_to_G = False) -> Dict[str, pd.DataFrame]:
         A = None
         b = None
@@ -193,7 +193,7 @@ class Constraints:
             I = np.diag(np.ones(len(self.selection)))
             G_tmp = np.concatenate((-I, I), axis = 0)
             h_tmp = np.concatenate((-self.box["lower"], self.box["upper"]), axis = 0)
-            G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp            
+            G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
             h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
         if not self.linear['Amat'].empty:
@@ -216,9 +216,9 @@ class Constraints:
             if idx_geq.sum() > 0:
                 G_tmp[idx_geq] = G_tmp[idx_geq] * (-1)
                 h_tmp[idx_geq] = h_tmp[idx_geq] * (-1)
-            
+
             if 'G_tmp' in locals():
-                G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp         
+                G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
                 h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
         ans = {'G': G, 'h': h, 'A': A, 'b': b}
