@@ -18,15 +18,13 @@ import scipy
 import qpsolvers
 from qpsolvers import solve_qp
 from typing import Tuple
+import sys
+sys.path.insert(1, '../src')
 
-
-from src.helper_functions import *
-from src.covariance import Covariance
-from src.optimization import *
-from src.optimization_data import OptimizationData
-
-
-
+from helper_functions import *
+from covariance import Covariance
+from optimization import *
+from optimization_data import OptimizationData
 
 
 
@@ -50,6 +48,9 @@ class TestQuadraticProgram(unittest.TestCase):
 
 # --------------------------------------------------------------------------
 class TestLeastSquares(TestQuadraticProgram):
+
+    def __init__(self, universe = 'msci', solver_name = 'cvxopt'):
+        self._testMethodName = 'Least squares'
 
     def prep_optim(self, rebdate: str = None) -> None:
 
@@ -89,16 +90,30 @@ class TestLeastSquares(TestQuadraticProgram):
 
 
 
-def test_1():
+def test_least_square():
 
     test = TestLeastSquares(universe = 'msci', solver_name = 'cvxopt')
     test.prep_optim()
     test.optim.solve()
 
-    test.optim.model
-    test.optim.results
+    # test.optim.model
+    # test.optim.results
+    return test
 
+def run_test(method, universe, solver):
+    test = method(universe = universe, solver_name = solver)
+    test.prep_optim()
+    test.optim.solve()
+    # print(f"- Solution is{'' if solution.is_optimal(1e-8) else ' NOT'} optimal")
+    # print(f"- Primal residual: {solution.primal_residual():.1e}")
+    # print(f"- Dual residual: {solution.dual_residual():.1e}")
+    # print(f"- Duality gap: {solution.duality_gap():.1e}")
+    return test
 
+if __name__ == '__main__':
+    # result = run_test(TestLeastSquares(), 'msci', 'cvxopt')
+    result = test_least_square()
+    print(result)
 
 
 

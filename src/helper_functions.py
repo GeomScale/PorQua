@@ -20,8 +20,8 @@ import pandas as pd
 
 def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
-    path = f'{os.getcwd()}\\data\\' if path is None else path
-
+    # path = fr'{os.getcwd()}\\data\\' if path is None else path
+    path = fr'{os.getcwd()[:-4]}/data/' if path is None else path
     # Load msci country index return series
     df = pd.read_csv(f'{path}msci_country_indices.csv',
                     sep=';',
