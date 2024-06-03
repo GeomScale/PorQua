@@ -95,9 +95,9 @@ class Constraints:
         if not all(isinstance(item, str) for item in selection):
             raise ValueError("argument 'selection' has to be a character vector.")
         self.selection = selection
-        self.budget = {'Amat': pd.DataFrame(), 'sense': None, 'rhs': None}
-        self.box = {'type': 'NA', 'lower': pd.Series(), 'upper': pd.Series()}
-        self.linear = {'Amat': pd.DataFrame(), 'sense': pd.Series(), 'rhs': pd.Series()}
+        self.budget = {'Amat': pd.DataFrame(dtype='float64'), 'sense': None, 'rhs': None}
+        self.box = {'type': 'NA', 'lower': pd.Series(dtype='float64'), 'upper': pd.Series(dtype='float64')}
+        self.linear = {'Amat': pd.DataFrame(dtype='float64'), 'sense': pd.Series(dtype='float64'), 'rhs': pd.Series(dtype='float64')}
         self.l1 = {}
         return None
 
