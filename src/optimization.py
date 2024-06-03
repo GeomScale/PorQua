@@ -160,7 +160,7 @@ class LeastSquares(Optimization):
 
         l2_penalty = self.params.get('l2_penalty')
         if l2_penalty is not None:
-            P = 2 * ((X.T @ X) + l2_penalty * np.eye(X.shape[1]))
+            P = P + 2 * l2_penalty * np.eye(X.shape[1])
 
         self.objective = Objective(y = y,
                                    X = X,
