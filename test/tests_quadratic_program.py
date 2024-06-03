@@ -12,6 +12,7 @@
 
 
 import unittest
+from itertools import product
 import pandas as pd
 import numpy as np
 import scipy
@@ -49,12 +50,11 @@ class TestQuadraticProgram(unittest.TestCase):
 # --------------------------------------------------------------------------
 class TestLeastSquares(TestQuadraticProgram):
 
-    def __init__(self, universe = 'msci', solver_name = 'cvxopt'):
-        self._testMethodName = 'Least squares'
+    def __init__(self, name_suffix, universe, solver_name):
+        super().__init__(universe, solver_name)
+        self._testMethodName = f'LeastSquare_{name_suffix}'
 
     def prep_optim(self, rebdate: str = None) -> None:
-
-
         # Initialize optimization object
         optim = LeastSquares(solver_name = self._solver_name)
 
@@ -87,34 +87,37 @@ class TestLeastSquares(TestQuadraticProgram):
 
         return None
 
+def test_least_square(params):
+    universe = params[0]
+    solver = params[1]
+    name_suffix = f'_{universe}_{solver}'
 
-
-
-def test_least_square():
-
-    test = TestLeastSquares(universe = 'msci', solver_name = 'cvxopt')
+    test = TestLeastSquares(name_suffix, universe, solver)
     test.prep_optim()
     test.optim.solve()
 
-    # test.optim.model
-    # test.optim.results
     return test
 
 def run_test(method, universe, solver):
     test = method(universe = universe, solver_name = solver)
     test.prep_optim()
-    test.optim.solve()
-    # print(f"- Solution is{'' if solution.is_optimal(1e-8) else ' NOT'} optimal")
-    # print(f"- Primal residual: {solution.primal_residual():.1e}")
-    # print(f"- Dual residual: {solution.dual_residual():.1e}")
-    # print(f"- Duality gap: {solution.duality_gap():.1e}")
     return test
 
 if __name__ == '__main__':
-    # result = run_test(TestLeastSquares(), 'msci', 'cvxopt')
-    result = test_least_square()
-    print(result)
+    universe_set = ['msci']
+    solver_names = ['cvxopt', 'qpalm']
 
+    test_params = product(universe_set, solver_names)
 
+    for i, params in enumerate(test_params):
+        test_obj = test_least_square(params)
+        solution = test_obj.optim.model['solution']
 
+        print(f"- Primal objective at the solution is {solution.obj}")
+        print(f"- Solution is {solution.x} and {'' if solution.is_optimal(1e-6) else ' NOT'} optimal")
+        print(f"- Solution is{'' if solution.is_optimal(1e-8) else ' NOT'} optimal")
+        print(f"- Value of the primal objective at the solution is {solution.obj}")
+        print(f"- Primal residual: {solution.primal_residual():.1e}")
+        print(f"- Dual residual: {solution.dual_residual():.1e}")
+        print(f"- Duality gap: {solution.duality_gap()}")
 
