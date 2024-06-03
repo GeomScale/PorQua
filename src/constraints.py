@@ -138,10 +138,10 @@ class Constraints:
         return None
 
     def add_linear(self,
-                   Amat: pd.DataFrame() = None,
-                   a_values: pd.Series() = None,
-                   sense: pd.Series() = None,
-                   rhs: pd.Series() = None,
+                   Amat: pd.DataFrame(dtype='float64') = None,
+                   a_values: pd.Series(dtype='float64') = None,
+                   sense: pd.Series(dtype='float64') = None,
+                   rhs: pd.Series(dtype='float64') = None,
                    name: str = None) -> None:
         if Amat is None:
             if a_values is None:
