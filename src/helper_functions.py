@@ -44,14 +44,13 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
     return data
 
 
-
 def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
-    path = f'{os.getcwd()}\\data\\' if path is None else path
-
+    # path = f'{os.getcwd()}\\data\\' if path is None else path
+    path = fr'{os.getcwd()[:-4]}/data/' if path is None else path
     # Load U.S. security data
-    df_secd = None
-    # ...
+    df_secd = pd.read_csv(f'{path}usa_returns.csv', index_col = 0)
+    df_secd.index = pd.to_datetime(df_secd.index, format='%Y-%m-%d')
 
     # Load U.S. stock characteristics (fundamentals) data
     # ...
@@ -59,17 +58,13 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
     # Load S&P 500 index return series
     y = pd.read_csv(f'{path}SPTR.csv',
-                         sep=';',
                          index_col=0,
                          header=0,
                          parse_dates=True)
-    y.index = pd.to_datetime(yearfirst=y.index, format='%d/%m/%Y')
+    y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
 
     data = {'df_secd': df_secd, 'df_funda': df_funda, 'y': y}
     return data
-
-
-
 
 
 def nearestPD(A):
