@@ -14,7 +14,7 @@
 from typing import Dict
 import pandas as pd
 import numpy as np
-
+import helper_functions
 
 
 
@@ -85,7 +85,11 @@ def linear_constraint(Amat = None,
 
 
 # --------------------------------------------------------------------------
-# Class definition
+# Constraints class:
+#       *
+#       *
+#       *
+#       *
 # --------------------------------------------------------------------------
 
 class Constraints:
@@ -102,10 +106,7 @@ class Constraints:
         return None
 
     def __str__(self) -> str:
-        txt = ''
-        for key in vars(self).keys():
-            txt = txt + f'\n{key}:\n\n{vars(self)[key]}\n'
-        return txt
+        return ' '.join(f'\n{key}:\n\n{vars(self)[key]}\n' for key in vars(self).keys())
 
     def add_budget(self, rhs = 1, sense = '=') -> None:
         if self.budget.get('rhs') is not None:
@@ -140,9 +141,10 @@ class Constraints:
     def add_linear(self,
                    Amat: pd.DataFrame(dtype='float64') = None,
                    a_values: pd.Series(dtype='float64') = None,
-                   sense: pd.Series(dtype='float64') = None,
-                   rhs: pd.Series(dtype='float64') = None,
+                   sense = '=',
+                   rhs = None,
                    name: str = None) -> None:
+
         if Amat is None:
             if a_values is None:
                 raise ValueError("Either 'Amat' or 'a_values' must be provided.")
@@ -150,10 +152,18 @@ class Constraints:
                 Amat = pd.DataFrame(a_values).T.reindex(columns = self.selection).fillna(0)
                 if name is not None:
                     Amat.index = [name]
+
+        if isinstance(sense, str):
+            sense = pd.Series([sense])
+
+        if isinstance(rhs, (int, float)):
+            rhs = pd.Series([rhs])
+
         if not self.linear['Amat'].empty:
             Amat = pd.concat([self.linear['Amat'], Amat], axis = 0, ignore_index = False)
             sense = pd.concat([self.linear['sense'], sense], axis = 0, ignore_index = False)
             rhs = pd.concat([self.linear['rhs'], rhs], axis = 0, ignore_index = False)
+
         self.linear = {'Amat': Amat,
                       'sense': sense,
                       'rhs': rhs}
