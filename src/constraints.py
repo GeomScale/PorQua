@@ -207,25 +207,29 @@ class Constraints:
             h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
         if not self.linear['Amat'].empty:
-            # Extract equality constraints
-            idx_eq = np.array(self.linear['sense'] == '=')
-            if idx_eq.sum() > 0:
-                A_tmp = self.linear['Amat'][idx_eq].to_numpy()
-                b_tmp = self.linear['rhs'][idx_eq].to_numpy()
-                A = np.vstack((A, A_tmp)) if (A is not None) else A_tmp
-                b = np.concatenate((b, b_tmp), axis = None) if (b is not None) else b_tmp
-                if idx_eq.sum() < self.linear['Amat'].shape[0]:
-                    G_tmp = self.linear['Amat'][idx_eq == False].to_numpy()
-                    h_tmp = self.linear['rhs'][idx_eq == False].to_numpy()
-            else:
-                G_tmp = self.linear['Amat'].to_numpy()
-                h_tmp = self.linear['rhs'].to_numpy()
+
+            Amat = self.linear['Amat'].copy()
+            rhs = self.linear['rhs'].copy()
 
             # Ensure that the system of inequalities is all '<='
             idx_geq = np.array(self.linear['sense'] == '>=')
             if idx_geq.sum() > 0:
-                G_tmp[idx_geq] = G_tmp[idx_geq] * (-1)
-                h_tmp[idx_geq] = h_tmp[idx_geq] * (-1)
+                Amat[idx_geq] = -Amat[idx_geq]
+                rhs[idx_geq] = -rhs[idx_geq]
+
+            # Extract equality constraints
+            idx_eq = np.array(self.linear['sense'] == '=')
+            if idx_eq.sum() > 0:
+                A_tmp = Amat[idx_eq].to_numpy()
+                b_tmp = rhs[idx_eq].to_numpy()
+                A = np.vstack((A, A_tmp)) if (A is not None) else A_tmp
+                b = np.concatenate((b, b_tmp), axis = None) if (b is not None) else b_tmp
+                if idx_eq.sum() < Amat.shape[0]:
+                    G_tmp = Amat[idx_eq == False].to_numpy()
+                    h_tmp = rhs[idx_eq == False].to_numpy()
+            else:
+                G_tmp = Amat.to_numpy()
+                h_tmp = rhs.to_numpy()
 
             if 'G_tmp' in locals():
                 G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
