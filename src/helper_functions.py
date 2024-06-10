@@ -15,8 +15,16 @@ import os
 from typing import Dict
 import numpy as np
 import pandas as pd
+import pickle
 
-
+def load_data(universe):
+    if universe == 'msci':
+        data = load_data_msci()
+    elif universe == 'usa':
+        data = load_data_usa()
+    else:
+        raise ValueError('Universe not recognized.')
+    return data
 
 def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
@@ -49,7 +57,7 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
     # path = f'{os.getcwd()}\\data\\' if path is None else path
     path = fr'{os.getcwd()[:-4]}/data/' if path is None else path
     # Load U.S. security data
-    df_secd = pd.read_csv(f'{path}usa_returns.csv', index_col = 0)
+    df_secd = pd.read_csv(f'{path}usa_returns.csv', index_col = 0, parse_dates=True)
     df_secd.index = pd.to_datetime(df_secd.index, format='%Y-%m-%d')
 
     # Load U.S. stock characteristics (fundamentals) data
@@ -60,10 +68,11 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
     y = pd.read_csv(f'{path}SPTR.csv',
                          index_col=0,
                          header=0,
-                         parse_dates=True)
-    y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
+                         parse_dates=True,
+                         dayfirst=True)
+    y.index = pd.to_datetime(y.index, format='%d/%m/%Y', dayfirst=True)
 
-    data = {'df_secd': df_secd, 'df_funda': df_funda, 'y': y}
+    data = {'X': df_secd, 'df_funda': df_funda, 'y': y}
     return data
 
 
@@ -107,6 +116,15 @@ def isPD(B):
     except np.linalg.LinAlgError:
         return False
 
+def serialize_solution(name_suffix, solution, runtime):
+    result = {
+                'solution' : solution.x,
+                'objective' : solution.obj,
+                'primal_residual' :solution.primal_residual(),
+                'dual_residual' : solution.dual_residual(),
+                'duality_gap' : solution.duality_gap(),
+                'runtime' : runtime
+            }
 
-
-
+    with open(f'{name_suffix}.pickle', 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
