@@ -103,6 +103,14 @@ class Optimization(ABC):
 
     def model_qpsolvers(self) -> None:
         GhAb = self.constraints.to_GhAb()
+
+        if self.constraints.box['type'] == 'NA':
+            lb = None
+            ub = None
+        else:
+            lb = self.constraints.box['lower'].to_numpy()
+            ub = self.constraints.box['upper'].to_numpy()
+
         self.model = qp_problems.QuadraticProgram(P = self.objective['P'],
                                       q = self.objective['q'],
                                       constant = self.objective.get('constant'),
@@ -110,8 +118,8 @@ class Optimization(ABC):
                                       h = GhAb['h'],
                                       A = GhAb['A'],
                                       b = GhAb['b'],
-                                      lb = self.constraints.box['lower'].to_numpy(),
-                                      ub = self.constraints.box['upper'].to_numpy(),
+                                      lb = lb,
+                                      ub = ub,
                                       solver_name = self.params['solver_name'])
 
         # Transaction cost in the objective
@@ -154,6 +162,7 @@ class LeastSquares(Optimization):
         X = np.log(1 + optimization_data['X'])
         y = np.log(1 + optimization_data['y'])
 
+        # w * P * w' - q * w' + 1/2 * constant
         P = 2 * (X.T @ X)
         q = -2 * X.T @ y
         constant = y.T @ y
