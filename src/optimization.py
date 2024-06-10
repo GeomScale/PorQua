@@ -104,7 +104,7 @@ class Optimization(ABC):
     def model_qpsolvers(self) -> None:
         GhAb = self.constraints.to_GhAb()
 
-        if self.constraints.box['type'] == 'NA':
+        if self.constraints.box['box_type'] == 'NA':
             lb = None
             ub = None
         else:
