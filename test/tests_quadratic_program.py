@@ -20,6 +20,9 @@ import qpsolvers
 from qpsolvers import solve_qp
 from typing import Tuple
 import sys
+import pickle
+import json
+import time
 sys.path.insert(1, '../src')
 
 from helper_functions import *
@@ -31,28 +34,43 @@ from optimization_data import OptimizationData
 
 class TestQuadraticProgram(unittest.TestCase):
 
-    def __init__(self, universe = 'msci', solver_name = 'cvxopt'):
+    def __init__(self, testname, universe = 'msci', solver_name = 'cvxopt'):
+        super().__init__(testname)
         self._universe = universe
         self._solver_name = solver_name
-        self.load_data(universe = universe)
+        self.data = load_data(universe)
 
-    def load_data(self, universe = 'msci') -> None:
-        if universe == 'msci':
-            self.data = load_data_msci()
-        elif universe == 'usa':
-            self.data = load_data_usa()
-        else:
-            raise ValueError('Universe not recognized.')
-        return None
+    def test_add_constraints(self):
+        universe = self.data['X'].columns
+        constraints = Constraints(selection = universe)
 
+        constraints.add_budget()
+        constraints.add_box("LongOnly")
 
+        constraints.add_linear(None, pd.Series(np.random.rand(universe.size), index=universe), '<=', 1)
+        constraints.add_linear(None, pd.Series(np.random.rand(universe.size), index=universe), '>=', -1)
+        constraints.add_linear(None, pd.Series(np.random.rand(universe.size), index=universe), '=', 0.5)
+
+        sub_universe = universe[:universe.size // 2]
+        linear_constraints = pd.DataFrame(np.random.rand(3, sub_universe.size), columns=sub_universe)
+        sense = pd.Series(np.repeat('=', 3))
+        rhs = pd.Series(np.ones(3))
+        constraints.add_linear(linear_constraints, None, sense, rhs, None)
+
+        constraints.to_GhAb()
+        constraints.to_GhAb(True)
 
 # --------------------------------------------------------------------------
-class TestLeastSquares(TestQuadraticProgram):
+class SimpleLeastSquares(TestQuadraticProgram):
 
-    def __init__(self, name_suffix, universe, solver_name):
-        super().__init__(universe, solver_name)
-        self._testMethodName = f'LeastSquare_{name_suffix}'
+    def setUp(self):
+        self.start_time = time.time()
+
+    def tearDown(self):
+        self.run_time = time.time() - self.start_time
+        print('%s: Elapsed time: %.3f(s)' % (self.id(), self.run_time))
+        serialize_solution(f'ls_{self._universe}_{self._solver_name}', self.solution, self.run_time)
+
 
     def prep_optim(self, rebdate: str = None) -> None:
         # Initialize optimization object
@@ -87,37 +105,25 @@ class TestLeastSquares(TestQuadraticProgram):
 
         return None
 
-def test_least_square(params):
-    universe = params[0]
-    solver = params[1]
-    name_suffix = f'_{universe}_{solver}'
+    def test_least_square(self):
+        self.prep_optim()
+        self.optim.solve()
+        self.solution = self.optim.model['solution']
+        return None
 
-    test = TestLeastSquares(name_suffix, universe, solver)
-    test.prep_optim()
-    test.optim.solve()
-
-    return test
-
-def run_test(method, universe, solver):
-    test = method(universe = universe, solver_name = solver)
-    test.prep_optim()
-    return test
 
 if __name__ == '__main__':
-    universe_set = ['msci']
-    solver_names = ['cvxopt', 'qpalm']
+    suite = unittest.TestSuite()
 
-    test_params = product(universe_set, solver_names)
+    suite.addTest(TestQuadraticProgram('test_add_constraints'))
 
-    for i, params in enumerate(test_params):
-        test_obj = test_least_square(params)
-        solution = test_obj.optim.model['solution']
+    universes = ['msci', 'usa']
+    solvers = list(set(qpsolvers.solvers.available_solvers) - {'gurobi', 'mosek', 'ecos', 'proxqp', 'piqp', 'scs'}) # FIXME: it depends on the installation?
 
-        print(f"- Primal objective at the solution is {solution.obj}")
-        print(f"- Solution is {solution.x} and {'' if solution.is_optimal(1e-6) else ' NOT'} optimal")
-        print(f"- Solution is{'' if solution.is_optimal(1e-8) else ' NOT'} optimal")
-        print(f"- Value of the primal objective at the solution is {solution.obj}")
-        print(f"- Primal residual: {solution.primal_residual():.1e}")
-        print(f"- Dual residual: {solution.dual_residual():.1e}")
-        print(f"- Duality gap: {solution.duality_gap()}")
+    test_params = product(universes, solvers)
+    save_log = {universe : {} for universe in universes}
+    for universe, solver in test_params:
+        suite.addTest(SimpleLeastSquares('test_least_square', universe, solver))
 
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
