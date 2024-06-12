@@ -72,7 +72,7 @@ class TestQuadraticProgram(unittest.TestCase):
         self.assertEqual(GhAb_with_box['b'].shape, (5,))
 
 # --------------------------------------------------------------------------
-class SimpleLeastSquares(TestQuadraticProgram):
+class TestLeastSquares(TestQuadraticProgram):
 
     def setUp(self):
         self.start_time = time.time()
@@ -139,6 +139,22 @@ class SimpleLeastSquares(TestQuadraticProgram):
         self.solution = self.optim.model['solution']
         return None
 
+    def least_square_with_l1(self):
+        universe = self.data['X'].columns
+        constraints = Constraints(selection = universe)
+        constraints.add_budget()
+
+        linear_constraints = pd.DataFrame(np.random.rand(3, universe.size), columns=universe)
+        sense = pd.Series(np.repeat('<=', 3))
+        rhs = pd.Series(np.ones(3))
+        constraints.add_linear(linear_constraints, None, sense, rhs, None)
+        constraints.add_l1('turnover', rhs = 1, x0 = dict(zip(universe, np.zeros(universe.size))))
+
+        self.prep_optim(constraints)
+        self.optim.solve()
+        self.solution = self.optim.model['solution']
+        return None
+
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()
@@ -151,8 +167,10 @@ if __name__ == '__main__':
     test_params = product(universes, solvers)
     save_log = {universe : {} for universe in universes}
     for universe, solver in test_params:
-        suite.addTest(SimpleLeastSquares('least_square', universe, solver))
-        suite.addTest(SimpleLeastSquares('least_square_with_inequalities', universe, solver))
+        suite.addTest(TestLeastSquares('least_square', universe, solver))
+        suite.addTest(TestLeastSquares('least_square_with_inequalities', universe, solver))
+        suite.addTest(TestLeastSquares('least_square_with_l1', universe, solver))
+
 
     runner = unittest.TextTestRunner()
     runner.run(suite)

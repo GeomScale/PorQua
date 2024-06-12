@@ -169,15 +169,16 @@ class Constraints:
                       'rhs': rhs}
         return None
 
+    # name: turnover or leverage
     def add_l1(self,
                name: str,
-               x0 = None,
                rhs = None,
+               x0 = None,
                *args, **kwargs) -> None:
         if rhs is None:
             raise TypeError("argument 'rhs' is required.")
         con = {'rhs': rhs}
-        if not x0 is None:
+        if x0:
             con['x0'] = x0
         for i, arg in enumerate(args):
             con[f'arg{i}'] = arg
