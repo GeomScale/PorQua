@@ -37,7 +37,6 @@ pip-delete-this-directory.txt
 
 # Reports
 *.html
-*.ipynb
 
 
 # Unit test / coverage reports
@@ -80,7 +79,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
-.ipynb_checkpoints
+# .ipynb_checkpoints
 
 # IPython
 profile_default/
