@@ -164,6 +164,8 @@ class Constraints:
             sense = pd.concat([self.linear['sense'], sense], axis = 0, ignore_index = False)
             rhs = pd.concat([self.linear['rhs'], rhs], axis = 0, ignore_index = False)
 
+        Amat.fillna(0, inplace = True)
+
         self.linear = {'Amat': Amat,
                       'sense': sense,
                       'rhs': rhs}
