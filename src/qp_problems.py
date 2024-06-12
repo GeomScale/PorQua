@@ -160,7 +160,9 @@ class QuadraticProgram(dict):
         return None
 
     def solve(self) -> None:
-
+        if self['solver_name'] in ['ecos', 'scs', 'clarabel']:
+            if self.get('b').size == 1 :
+                self['b'] = np.array(self.get('b')).reshape(-1)
         problem = qpsolvers.Problem(P = self.get('P'),
                                     q = self.get('q'),
                                     G = self.get('G'),
@@ -170,7 +172,10 @@ class QuadraticProgram(dict):
                                     lb = self.get('lb'),
                                     ub = self.get('ub'))
         # Convert to sparse matrices for best performance
-        if self['solver_name'] in ['highs', 'qpalm', 'osqp']:
+        if self['solver_name'] in ['clarabel',
+                                   'ecos',
+                                   'gurobi', 'mosek',
+                                   'highs', 'qpalm', 'osqp', 'qpswift', 'scs']:
             if self['sparse']:
                 if problem.P is not None:
                     problem.P = scipy.sparse.csc_matrix(problem.P)
