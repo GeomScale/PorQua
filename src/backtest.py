@@ -80,7 +80,7 @@ class Backtest:
 
 
 
-path = '/home/akaboshi/minhha/GeoFin/data/'  # Change this to your path
+path = '../data/'  # Change this to your path
 
 
 
