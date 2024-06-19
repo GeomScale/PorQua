@@ -25,9 +25,13 @@ class OptimizationData(dict):
         if align:
             self.align_dates()
 
-    def intersecting_dates(self, variable_names: list = None) -> pd.DatetimeIndex:
+    def intersecting_dates(self, variable_names: list = None,  dropna: bool = True) -> pd.DatetimeIndex:
         if variable_names is None:
             variable_names = list(self.keys())
+        index = self.get(variable_names[0]).index
+        if dropna:
+            for variable_name in variable_names:
+                self[variable_name] = self[variable_name].dropna()
         index = self.get(variable_names[0]).index
         for variable_name in variable_names:
             index = index.intersection(self.get(variable_name).index)

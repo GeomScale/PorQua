@@ -95,10 +95,16 @@ class Optimization(ABC):
     def solve_qpsolvers(self) -> None:
         self.model_qpsolvers()
         self.model.solve()
+        status = self.model['solution'].found
+
         weights = pd.Series(self.model['solution'].x[0:len(self.constraints.selection)],
-                            index = self.constraints.selection)
+                                index = self.constraints.selection) if status else \
+                                    pd.Series([None] * len(self.constraints.selection),
+                                        index = self.constraints.selection)
+
         self.results = {'weights': weights.to_dict(),
                         'status': self.model['solution'].found}
+
         return None
 
     def model_qpsolvers(self) -> None:
