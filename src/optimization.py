@@ -164,12 +164,12 @@ class LeastSquares(Optimization):
     def set_objective(self, optimization_data: OptimizationData) -> None:
 
         X = np.log(1 + optimization_data['X'])
-        y = np.log(1 + optimization_data['y']).flatten()
+        y = np.log(1 + optimization_data['y'])
 
         # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
         q = -2 * X.T @ y
-        constant = y.dot(y)
+        constant = (y.T @ y).to_numpy().item()
 
         l2_penalty = self.params.get('l2_penalty')
         if l2_penalty is not None:
