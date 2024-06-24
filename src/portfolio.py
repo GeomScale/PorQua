@@ -18,15 +18,15 @@ from typing import Callable, Dict, List
 
 # --------------------------------------------------------------------------
 def floating_weights(X, w, start_date, end_date, rescale = True):
-    
+
     start_date = pd.to_datetime(start_date)
     end_date = pd.to_datetime(end_date)
     if start_date < X.index[0]:
         raise ValueError('start_date must be contained in dataset')
     if end_date > X.index[-1]:
         raise ValueError('end_date must be contained in dataset')
-    
-    
+
+
     w = pd.Series(w, index = w.keys())
     if w.isna().any():
         raise ValueError('weights (w) contain NaN which is not allowed.')
@@ -34,10 +34,10 @@ def floating_weights(X, w, start_date, end_date, rescale = True):
         w = w.to_frame().T
     xnames = X.columns
     wnames = w.columns
-    
+
     if not all(wnames.isin(xnames)):
         raise ValueError('Not all assets in w are contained in X.')
-    
+
     X_tmp = X.loc[start_date:end_date, wnames].copy().fillna(0)
     # short_positions = wnames[ w.iloc[0,:] < 0 ]
     # if len(short_positions) > 0:
@@ -47,7 +47,7 @@ def floating_weights(X, w, start_date, end_date, rescale = True):
     xmat.iloc[0] = w.dropna(how='all').fillna(0)
     w_float = xmat.cumprod()
 
-    if rescale:                       
+    if rescale:
         w_float_long = w_float.where(w_float >= 0).div(w_float[w_float >= 0].abs().sum(axis=1), axis='index').fillna(0)
         w_float_short = w_float.where(w_float < 0).div(w_float[w_float < 0].abs().sum(axis=1), axis='index').fillna(0)
         w_float = pd.DataFrame(w_float_long + w_float_short, index=xmat.index, columns=wnames)
@@ -58,9 +58,9 @@ def floating_weights(X, w, start_date, end_date, rescale = True):
 
 class Portfolio:
 
-    def __init__(self, 
-                 rebalancing_date: str = None, 
-                 weights: dict = {}, 
+    def __init__(self,
+                 rebalancing_date: str = None,
+                 weights: dict = {},
                  name: str = None):
         self.rebalancing_date = rebalancing_date
         self.weights = weights
@@ -87,7 +87,7 @@ class Portfolio:
 
     @property
     def rebalancing_date(self):
-        return self._rebalancing_date    
+        return self._rebalancing_date
 
     @rebalancing_date.setter
     def rebalancing_date(self, new_date):
@@ -108,7 +108,7 @@ class Portfolio:
     def __repr__(self):
         return f'Portfolio(rebalancing_date={self.rebalancing_date}, weights={self.weights})'
 
-    def float_weights(self, 
+    def float_weights(self,
                       return_series: pd.DataFrame,
                       end_date: str,
                       rescale: bool = False):
@@ -121,7 +121,7 @@ class Portfolio:
                                        rescale = rescale)
         return w_float
 
-    def initial_weights(self, 
+    def initial_weights(self,
                         selection: List[str],
                         return_series: pd.DataFrame,
                         end_date: str,
@@ -133,16 +133,16 @@ class Portfolio:
                 w_float = self.float_weights(return_series = return_series,
                                              end_date = end_date,
                                              rescale = rescale)
-                w_floated = w_float.iloc[-1]      
+                w_floated = w_float.iloc[-1]
                 for key in w_init.keys():
                     if key in w_floated.keys():
                         w_init[key] = w_floated[key]
                 self._initial_weights = w_init
             else:
                 self._initial_weights = {key: 0 for key in selection}
-                                
+
         return self._initial_weights
-    
+
     def turnover(self, portfolio, return_series, rescale = True):
 
         if portfolio.rebalancing_date < self.rebalancing_date:
@@ -160,19 +160,19 @@ class Portfolio:
 
         to = (pd.Series(w_init.values()) - pd.Series(w_current.values())).abs().sum()
         return to
-    
 
-    
+
+
 
 class Strategy:
 
     def __init__(self, portfolios: List[Portfolio]):
         self.portfolios = portfolios
-    
+
     @property
     def portfolios(self):
         return self._portfolios
-    
+
     @portfolios.setter
     def portfolios(self, new_portfolios):
         if not isinstance(new_portfolios, list):
@@ -180,7 +180,7 @@ class Strategy:
         if not all(isinstance(portfolio, Portfolio) for portfolio in new_portfolios):
             raise TypeError('all elements in portfolios must be of type Portfolio')
         self._portfolios = new_portfolios
-                
+
     def clear(self) -> None:
         self.portfolios.clear()
         return None
@@ -206,7 +206,7 @@ class Strategy:
             return self.portfolios[idx]
         else:
             raise ValueError(f'No portfolio found for rebalancing date {rebalancing_date}')
-    
+
     def has_previous_portfolio(self, rebalancing_date: str) -> bool:
         dates = self.get_rebalancing_dates()
         ans = False
@@ -220,21 +220,21 @@ class Strategy:
         else:
             yesterday = [x for x in self.get_rebalancing_dates() if x < rebalancing_date][-1]
             return self.get_portfolio(yesterday)
-    
-    def get_initial_portfolio(self, 
+
+    def get_initial_portfolio(self,
                               rebalancing_date: str) -> Portfolio:
         if self.has_previous_portfolio(rebalancing_date = rebalancing_date):
             initial_portfolio = self.get_previous_portfolio(rebalancing_date)
         else:
             initial_portfolio = Portfolio(rebalancing_date = None, weights = {})
         return initial_portfolio
-    
+
     def __repr__(self):
         return f'Strategy(portfolios={self.portfolios})'
-    
+
     def number_of_assets(self, th: float = 0.0001) -> pd.Series:
         return self.get_weights_df().apply(lambda x: sum(np.abs(x) > th), axis = 1)
-    
+
     def turnover(self, return_series, rescale = True):
 
         dates = self.get_rebalancing_dates()
@@ -243,17 +243,17 @@ class Strategy:
         for rebalancing_date in dates[1:]:
             previous_portfolio = self.get_previous_portfolio(rebalancing_date)
             current_portfolio = self.get_portfolio(rebalancing_date)
-            to[rebalancing_date] = current_portfolio.turnover(portfolio = previous_portfolio, 
-                                                              return_series = return_series, 
+            to[rebalancing_date] = current_portfolio.turnover(portfolio = previous_portfolio,
+                                                              return_series = return_series,
                                                               rescale = rescale)
         return pd.Series(to)
 
-    def simulate(self, 
+    def simulate(self,
                  return_series = None,
                  fc: float = 0,
                  vc: float = 0,
                  n_days_per_year: int = 252) -> pd.Series:
-             
+
         rebdates = self.get_rebalancing_dates()
         ret_list = []
         for rebdate in rebdates:
@@ -262,15 +262,15 @@ class Strategy:
             else:
                 end_date = return_series.index[-1]
             portfolio = self.get_portfolio(rebdate)
-            w_float = portfolio.float_weights(return_series = return_series, 
-                                              end_date = end_date, 
-                                              rescale = False)  # Note that rescale is hardcoded to False.         
+            w_float = portfolio.float_weights(return_series = return_series,
+                                              end_date = end_date,
+                                              rescale = False)  # Note that rescale is hardcoded to False.
             short_positions = [portfolio.weights[key] for key in portfolio.weights.keys() if portfolio.weights[key] < 0]
             long_positions = [portfolio.weights[key] for key in portfolio.weights.keys() if portfolio.weights[key] >= 0]
             margin = abs(sum(short_positions))
             cash = max(min(1 - sum(long_positions), 1), 0)
-            loan = 1 - (sum(long_positions) + cash) - (sum(short_positions) + margin) 
-            w_float.insert(0, 'margin', margin)                
+            loan = 1 - (sum(long_positions) + cash) - (sum(short_positions) + margin)
+            w_float.insert(0, 'margin', margin)
             w_float.insert(0, 'cash', cash)
             w_float.insert(0, 'loan', loan)
             level = w_float.sum(axis=1)
@@ -280,7 +280,7 @@ class Strategy:
         portf_ret = pd.concat(ret_list).dropna()
 
         if vc != 0:
-            to = self.turnover(return_series = return_series, 
+            to = self.turnover(return_series = return_series,
                                rescale = False) # Note that rescale is hardcoded to False.
             varcost = to * vc
             portf_ret[0] -= varcost[0]
@@ -291,8 +291,8 @@ class Strategy:
             portf_ret[1:] -= fixcost
 
         return portf_ret
-    
-    
+
+
 
 
 

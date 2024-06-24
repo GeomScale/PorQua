@@ -47,9 +47,9 @@ class OptimizationParameter(dict):
     def __init__(self, *args, **kwargs):
         super(OptimizationParameter, self).__init__(*args, **kwargs)
         self.__dict__ = self
-        if self.get('solver_name') is None: self['solver_name'] = 'cvxopt'
-        if self.get('verbose') is None: self['verbose'] = True
-        if self.get('allow_suboptimal') is None: self['allow_suboptimal'] = False
+        if not self.get('solver_name'): self['solver_name'] = 'cvxopt'
+        if not self.get('verbose'): self['verbose'] = True
+        if not self.get('allow_suboptimal'): self['allow_suboptimal'] = False
 
 
 class Objective(dict):
@@ -118,15 +118,15 @@ class Optimization(ABC):
             ub = self.constraints.box['upper'].to_numpy()
 
         self.model = qp_problems.QuadraticProgram(P = self.objective['P'],
-                                      q = self.objective['q'],
-                                      constant = self.objective.get('constant'),
-                                      G = GhAb['G'],
-                                      h = GhAb['h'],
-                                      A = GhAb['A'],
-                                      b = GhAb['b'],
-                                      lb = lb,
-                                      ub = ub,
-                                      solver_name = self.params['solver_name'])
+                                        q = self.objective['q'],
+                                        constant = self.objective.get('constant'),
+                                        G = GhAb['G'],
+                                        h = GhAb['h'],
+                                        A = GhAb['A'],
+                                        b = GhAb['b'],
+                                        lb = lb,
+                                        ub = ub,
+                                        solver_name = self.params['solver_name'])
 
         # Transaction cost in the objective
         transaction_cost = self.params.get('transaction_cost')
@@ -151,8 +151,6 @@ class Optimization(ABC):
         return None
 
 
-
-
 class LeastSquares(Optimization):
 
     def __init__(self,
@@ -166,12 +164,12 @@ class LeastSquares(Optimization):
     def set_objective(self, optimization_data: OptimizationData) -> None:
 
         X = np.log(1 + optimization_data['X'])
-        y = np.log(1 + optimization_data['y'])
+        y = np.log(1 + optimization_data['y']).flatten()
 
-        # w * P * w' - q * w' + 1/2 * constant
+        # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
         q = -2 * X.T @ y
-        constant = y.T @ y
+        constant = y.dot(y)
 
         l2_penalty = self.params.get('l2_penalty')
         if l2_penalty is not None:

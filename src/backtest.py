@@ -19,7 +19,6 @@ from optimization_data import OptimizationData
 from portfolio import Portfolio, Strategy
 
 
-
 class Backtest:
 
     def __init__(self, **kwargs):
@@ -27,6 +26,7 @@ class Backtest:
         self.strategy: Strategy = Strategy([])
         self.optimization: Optimization = None
         self.optimization_data: OptimizationData = OptimizationData(align = False)
+        self.summary = []
         self.settings = {**kwargs}
 
     def prepare_optimization_data(self, rebdate: str) -> None:
@@ -48,7 +48,6 @@ class Backtest:
 
         rebdates = self.settings['rebdates']
         for rebdate in rebdates:
-
             print(f"Rebalancing date: {rebdate}")
 
             # Prepare optimization and solve it
@@ -62,90 +61,19 @@ class Backtest:
                                                        end_date = rebdate,
                                                        rescale = False)
             self.optimization.params['x_init'] = x_init
+
             ## Set objective
             self.optimization.set_objective(optimization_data = self.optimization_data)
+
             # Solve the optimization problem
             self.optimization.solve()
 
             # Append the optimized portfolio to the strategy
             weights = self.optimization.results['weights']
+
+            self.summary.append(self.optimization.model)
+
             portfolio = Portfolio(rebalancing_date = rebdate, weights = weights)
             self.strategy.portfolios.append(portfolio)
 
         return None
-
-
-
-
-
-
-
-path = '../data/'  # Change this to your path
-
-
-
-# Prepare data
-return_series = pd.read_parquet(f'{path}usa_returns.parquet')
-return_series_index = pd.read_csv(f'{path}SPTR.csv', index_col = 0)
-return_series_index.index = pd.to_datetime(return_series_index.index, format='%d/%m/%Y')
-features = pd.read_parquet(f'{path}usa_features.parquet')
-data = {'return_series': return_series,
-        'return_series_index': return_series_index,
-        'features': features}
-
-# Define rebalancing dates
-n_days = 21
-start_date = '2010-01-01'
-dates = data['return_series'].index
-rebdates = dates[dates > start_date][::n_days].strftime('%Y-%m-%d').tolist()
-
-# Define constraints
-constraints = Constraints(selection = data['return_series'].columns)
-constraints.add_budget()
-constraints.add_box(box_type = 'LongOnly')
-
-# Define optimization
-optimization = LeastSquares(solver_name = 'highs')
-optimization.constraints = constraints
-
-# Initialize backtest object
-bt = Backtest(rebdates = rebdates,
-              width = 252)
-bt.data = data
-bt.optimization = optimization
-
-# Run backtest
-bt.run()
-
-# Simulation
-sim_bt = bt.strategy.simulate(return_series = bt.data['return_series'],
-                              fc = 0,
-                              vc = 0)
-
-
-# Analyze weights
-bt.strategy.get_weights_df()
-bt.strategy.number_of_assets().plot()
-
-
-# Analyze simulation
-sim = pd.concat({'sim': sim_bt,
-                 'index': bt.data['return_series_index']}, axis = 1).dropna()
-sim = np.log(1 + sim).cumsum().plot()
-
-
-# Performance metrics
-# ...
-
-
-
-
-
-
-
-
-
-
-
-
-
