@@ -22,19 +22,13 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from optimization_data import OptimizationData
 
-
-
-
-
-path = '/home/akaboshi/minhha/GeoFin/data/'  # Change this to your path
+path = '../data/'  # Change this to your path
 
 
 
 # Load data
 return_series = pd.read_parquet(f'{path}usa_returns.parquet')
 features = pd.read_parquet(f'{path}usa_features.parquet')
-
-
 
 # --------------------------------------------------------------------------
 # Regression
@@ -100,10 +94,6 @@ tmp.plot.scatter(x = 'pvalues', y = 'feat_imp')
 plt.show()
 tmp.plot.scatter(x = 'beta', y = 'feat_imp')
 plt.show()
-
-
-
-
 
 
 # --------------------------------------------------------------------------

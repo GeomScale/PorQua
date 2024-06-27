@@ -42,10 +42,11 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
     # Load msci world index return series
     y = pd.read_csv(f'{path}NDDLWI.csv',
-                         sep=';',
-                         index_col=0,
-                         header=0,
-                         parse_dates=True)
+            sep=';',
+            index_col=0,
+            header=0,
+            parse_dates=True)
+
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
 
     data = {'X': X, 'y': y}
@@ -66,10 +67,11 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
     # Load S&P 500 index return series
     y = pd.read_csv(f'{path}SPTR.csv',
-                         index_col=0,
-                         header=0,
-                         parse_dates=True,
-                         dayfirst=True)
+            index_col=0,
+            header=0,
+            parse_dates=True,
+            dayfirst=True)
+
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y', dayfirst=True)
 
     data = {'X': df_secd, 'df_funda': df_funda, 'y': y}
@@ -118,13 +120,13 @@ def isPD(B):
 
 def serialize_solution(name_suffix, solution, runtime):
     result = {
-                'solution' : solution.x,
-                'objective' : solution.obj,
-                'primal_residual' :solution.primal_residual(),
-                'dual_residual' : solution.dual_residual(),
-                'duality_gap' : solution.duality_gap(),
-                'runtime' : runtime
-            }
+        'solution' : solution.x,
+        'objective' : solution.obj,
+        'primal_residual' :solution.primal_residual(),
+        'dual_residual' : solution.dual_residual(),
+        'duality_gap' : solution.duality_gap(),
+        'runtime' : runtime
+    }
 
     with open(f'{name_suffix}.pickle', 'wb') as handle:
         pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)

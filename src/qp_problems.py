@@ -3,9 +3,6 @@ import pandas as pd
 import qpsolvers
 from qpsolvers import solve_qp
 import scipy
-
-
-
 from helper_functions import nearestPD
 from covariance import Covariance
 from constraints import Constraints

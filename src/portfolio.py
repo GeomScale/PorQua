@@ -26,7 +26,6 @@ def floating_weights(X, w, start_date, end_date, rescale = True):
     if end_date > X.index[-1]:
         raise ValueError('end_date must be contained in dataset')
 
-
     w = pd.Series(w, index = w.keys())
     if w.isna().any():
         raise ValueError('weights (w) contain NaN which is not allowed.')
@@ -90,8 +89,8 @@ class Portfolio:
         return self._rebalancing_date
 
     @rebalancing_date.setter
-    def rebalancing_date(self, new_date):
-        if new_date is not None and not isinstance(new_date, str):
+    def rebalancing_date(self, new_date: str):
+        if new_date and not isinstance(new_date, str):
             raise TypeError('date must be a string')
         self._rebalancing_date = new_date
 
@@ -174,7 +173,7 @@ class Strategy:
         return self._portfolios
 
     @portfolios.setter
-    def portfolios(self, new_portfolios):
+    def portfolios(self, new_portfolios: List[Portfolio]):
         if not isinstance(new_portfolios, list):
             raise TypeError('portfolios must be a list')
         if not all(isinstance(portfolio, Portfolio) for portfolio in new_portfolios):
@@ -221,8 +220,7 @@ class Strategy:
             yesterday = [x for x in self.get_rebalancing_dates() if x < rebalancing_date][-1]
             return self.get_portfolio(yesterday)
 
-    def get_initial_portfolio(self,
-                              rebalancing_date: str) -> Portfolio:
+    def get_initial_portfolio(self, rebalancing_date: str) -> Portfolio:
         if self.has_previous_portfolio(rebalancing_date = rebalancing_date):
             initial_portfolio = self.get_previous_portfolio(rebalancing_date)
         else:

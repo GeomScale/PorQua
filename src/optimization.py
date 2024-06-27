@@ -20,26 +20,13 @@ import qpsolvers
 from qpsolvers import solve_qp
 import scipy
 
-
-
 from helper_functions import nearestPD
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
 import qp_problems
 
-
-
-
-
-
-
 # https://github.com/qpsolvers/qpsolvers
-
-
-
-
-
 
 
 class OptimizationParameter(dict):
