@@ -192,5 +192,5 @@ class QuadraticProgram(dict):
 
     # 0.5 * x' * P * x + q' * x + const
     def objective_value(self, x: np.ndarray) -> float:
-        const = 0 if not self.get('constant') else self['constant']
-        return (0.5 * (x @ self.get('P') @ x) + self.get('q') @ x + const).item()
+        const = 0 if self.get('constant') is None else self['constant'].to_numpy().item()
+        return (0.5 * (x @ self.get('P') @ x) + self.get('q') @ x).item() + const

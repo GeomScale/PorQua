@@ -169,7 +169,7 @@ class LeastSquares(Optimization):
         # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
         q = -2 * X.T @ y
-        constant = (y.T @ y).to_numpy().item()
+        constant = (y.T @ y)
 
         l2_penalty = self.params.get('l2_penalty')
         if l2_penalty is not None:
