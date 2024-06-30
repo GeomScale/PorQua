@@ -3,7 +3,7 @@ import pandas as pd
 import qpsolvers
 from qpsolvers import solve_qp
 import scipy
-from helper_functions import nearestPD
+from helper_functions import nearestPD, to_numpy
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
@@ -18,7 +18,7 @@ class QuadraticProgram(dict):
 
     def __init__(self, *args, **kwargs):
         super(QuadraticProgram, self).__init__(*args, **kwargs)
-        self['sparse'] = self.get('sparse') is None
+        self.solver = self['params']['solver_name']
 
     def linearize_turnover_constraint(self,
                                       x_init: np.ndarray,
@@ -157,7 +157,7 @@ class QuadraticProgram(dict):
         return None
 
     def solve(self) -> None:
-        if self['solver_name'] in ['ecos', 'scs', 'clarabel']:
+        if self.solver in ['ecos', 'scs', 'clarabel']:
             if self.get('b').size == 1 :
                 self['b'] = np.array(self.get('b')).reshape(-1)
         problem = qpsolvers.Problem(P = self.get('P'),
@@ -169,11 +169,8 @@ class QuadraticProgram(dict):
                                     lb = self.get('lb'),
                                     ub = self.get('ub'))
         # Convert to sparse matrices for best performance
-        if self['solver_name'] in ['clarabel',
-                                   'ecos',
-                                   'gurobi', 'mosek',
-                                   'highs', 'qpalm', 'osqp', 'qpswift', 'scs']:
-            if self['sparse']:
+        if self.solver in ['clarabel', 'ecos','gurobi', 'mosek', 'highs', 'qpalm', 'osqp', 'qpswift', 'scs']:
+            if self['params']['sparse']:
                 if problem.P is not None:
                     problem.P = scipy.sparse.csc_matrix(problem.P)
                 if problem.A is not None:
@@ -181,7 +178,7 @@ class QuadraticProgram(dict):
                 if problem.G is not None:
                     problem.G = scipy.sparse.csc_matrix(problem.G)
         solution = qpsolvers.solve_problem(problem = problem,
-                                           solver = self.get('solver_name'),
+                                           solver = self.solver,
                                            initvals = self.get('x0'),
                                            verbose = False)
         self['solution'] = solution
@@ -189,5 +186,5 @@ class QuadraticProgram(dict):
 
     # 0.5 * x' * P * x + q' * x + const
     def objective_value(self, x: np.ndarray) -> float:
-        const = 0 if self.get('constant') is None else self['constant'].to_numpy().item()
+        const = 0 if self.get('constant') is None else to_numpy(self['constant']).item()
         return (0.5 * (x @ self.get('P') @ x) + self.get('q') @ x).item() + const

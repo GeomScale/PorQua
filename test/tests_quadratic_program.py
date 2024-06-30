@@ -25,7 +25,7 @@ import json
 import time
 sys.path.insert(1, '../src')
 
-from helper_functions import *
+from helper_functions import load_data, to_numpy
 from covariance import Covariance
 from optimization import *
 from optimization_data import OptimizationData
@@ -96,13 +96,11 @@ class TestLeastSquares(TestQuadraticProgram):
 
         # Ensure that P and q are numpy arrays
         if 'P' in optim.objective.keys():
-            if hasattr(optim.objective['P'], "to_numpy"):
-                optim.objective['P'] = optim.objective['P'].to_numpy()
+            optim.objective['P'] = to_numpy(optim.objective['P'])
         else:
             raise ValueError("Missing matrix 'P' in objective.")
         if 'q' in optim.objective.keys():
-            if hasattr(optim.objective['q'], "to_numpy"):
-                optim.objective['q'] = optim.objective['q'].to_numpy()
+            optim.objective['q'] = to_numpy(optim.objective['q'])
         else:
             optim.objective['q'] = np.zeros(len(optim.constraints.selection))
 

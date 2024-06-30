@@ -26,7 +26,7 @@ class Backtest:
         self.strategy: Strategy = Strategy([])
         self.optimization: Optimization = None
         self.optimization_data: OptimizationData = OptimizationData(align = False)
-        self.summary = []
+        self.models = [] # for debug
         self.settings = {**kwargs}
 
     def prepare_optimization_data(self, rebdate: str) -> None:
@@ -39,8 +39,8 @@ class Backtest:
         y = self.data['return_series_index']
         if width is None:
             width = np.min(X.shape[0] - 1, y.shape[0] - 1)
-        self.optimization_data['X'] = X[X.index <= rebdate].tail(width+1).to_numpy()
-        self.optimization_data['y'] = y[y.index <= rebdate].tail(width+1).to_numpy()
+        self.optimization_data['X'] = to_numpy(X[X.index <= rebdate].tail(width+1))
+        self.optimization_data['y'] = to_numpy(y[y.index <= rebdate].tail(width+1))
 
         return None
 
@@ -60,6 +60,7 @@ class Backtest:
                                                        selection = self.data['return_series'].columns,
                                                        end_date = rebdate,
                                                        rescale = False)
+
             self.optimization.params['x_init'] = x_init
 
             ## Set objective
@@ -70,8 +71,7 @@ class Backtest:
 
             # Append the optimized portfolio to the strategy
             weights = self.optimization.results['weights']
-
-            self.summary.append(self.optimization.model)
+            self.models.append(self.optimization.model)
 
             portfolio = Portfolio(rebalancing_date = rebdate, weights = weights)
             self.strategy.portfolios.append(portfolio)

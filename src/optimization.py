@@ -16,7 +16,6 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import qpsolvers
 from qpsolvers import solve_qp
 import scipy
 
@@ -57,7 +56,7 @@ class Optimization(ABC):
         self.results = None
 
     @abstractmethod
-    def solve(self) -> None:
+    def solve(self) -> bool:
 
         # Ensure that P and q are numpy arrays
         if 'P' in self.objective.keys():
@@ -108,7 +107,7 @@ class Optimization(ABC):
                                         b = GhAb['b'],
                                         lb = lb,
                                         ub = ub,
-                                        solver_name = self.params['solver_name'])
+                                        params = self.params)
 
         # Transaction cost in the objective
         transaction_cost = self.params.get('transaction_cost')
@@ -121,7 +120,6 @@ class Optimization(ABC):
         tocon = self.constraints.l1.get('turnover')
         if tocon is not None and transaction_cost is None:
             x_init = np.array(list(tocon['x0'].values()))
-
             self.model.linearize_turnover_constraint(x_init = x_init, to_budget = tocon['rhs'])
 
         # Leverage constraint
