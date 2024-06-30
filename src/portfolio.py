@@ -99,7 +99,7 @@ class Portfolio:
         return self._name
 
     @name.setter
-    def name(self, new_name):
+    def name(self, new_name: str):
         if new_name is not None and not isinstance(new_name, str):
             raise TypeError('name must be a string')
         self._name = new_name
@@ -112,7 +112,7 @@ class Portfolio:
                       end_date: str,
                       rescale: bool = False):
         w_float = None
-        if not self.weights is None:
+        if self.weights is not None:
             w_float = floating_weights(X = return_series,
                                        w = self.weights,
                                        start_date = self.rebalancing_date,
@@ -142,7 +142,7 @@ class Portfolio:
 
         return self._initial_weights
 
-    def turnover(self, portfolio, return_series, rescale = True):
+    def turnover(self, portfolio, return_series: pd.DataFrame, rescale = True):
 
         if portfolio.rebalancing_date < self.rebalancing_date:
             w_init = portfolio.initial_weights(selection = self.weights.keys(),

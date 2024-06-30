@@ -61,10 +61,7 @@ def box_constraint(box_type = "LongOnly",
             if upper is None:
                 upper = lower * 0 + 1
 
-    ans = {'box_type': box_type,
-           'lower': lower,
-           'upper': upper}
-    return ans
+    return {'box_type': box_type, 'lower': lower, 'upper': upper}
 
 
 def linear_constraint(Amat = None,
@@ -123,16 +120,14 @@ class Constraints:
                 upper = None) -> None:
 
         box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
-        boxcon = box_constraint(box_type = box_type,
-                                lower = lower,
-                                upper = upper)
+        boxcon = box_constraint(box_type, lower, upper)
 
         if np.isscalar(boxcon['lower']):
             boxcon['lower'] = pd.Series(np.repeat(boxcon['lower'], len(self.selection)), index=self.selection)
         if np.isscalar(boxcon['upper']):
             boxcon['upper'] = pd.Series(np.repeat(boxcon['upper'], len(self.selection)), index=self.selection)
 
-        if not (self.box['upper'] > self.box['lower']).all():
+        if not (boxcon['upper'] > boxcon['lower']).all():
             raise ValueError("Some lower bounds are higher than the corresponding upper bounds.")
 
         self.box = boxcon
@@ -141,7 +136,7 @@ class Constraints:
     def add_linear(self,
                    Amat: pd.DataFrame(dtype='float64') = None,
                    a_values: pd.Series(dtype='float64') = None,
-                   sense = '=',
+                   sense: str = '=',
                    rhs = None,
                    name: str = None) -> None:
 
@@ -166,9 +161,7 @@ class Constraints:
 
         Amat.fillna(0, inplace = True)
 
-        self.linear = {'Amat': Amat,
-                      'sense': sense,
-                      'rhs': rhs}
+        self.linear = {'Amat': Amat, 'sense': sense, 'rhs': rhs}
         return None
 
     # name: turnover or leverage
@@ -238,5 +231,4 @@ class Constraints:
                 G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
                 h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
-        ans = {'G': G, 'h': h, 'A': A, 'b': b}
-        return ans
+        return {'G': G, 'h': h, 'A': A, 'b': b}
