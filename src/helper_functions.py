@@ -130,3 +130,9 @@ def serialize_solution(name_suffix, solution, runtime):
 
     with open(f'{name_suffix}.pickle', 'wb') as handle:
         pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def to_numpy(data):
+    if hasattr(data, 'to_numpy'):
+        return data.to_numpy()
+    else:
+        return data
