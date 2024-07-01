@@ -119,7 +119,7 @@ class Optimization(ABC):
         # Turnover constraint
         tocon = self.constraints.l1.get('turnover')
         if tocon and not transaction_cost:
-            if self.params.get('x_init'):
+            if self.params.get('x_init') is not None:
                 prev_positions = self.params['x_init']
                 x0 = {}
                 for asset in self.constraints.selection:
@@ -131,6 +131,8 @@ class Optimization(ABC):
                 x_init = pd.Series(x0)
             else:
                 x_init = np.array(list(tocon['x0'].values()))
+
+            self.model.linearize_turnover_constraint(x_init, tocon['rhs'])
 
         # Leverage constraint
         levcon = self.constraints.l1.get('leverage')

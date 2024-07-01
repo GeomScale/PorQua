@@ -17,11 +17,13 @@ from optimization import *
 from constraints import Constraints
 from optimization_data import OptimizationData
 from portfolio import Portfolio, Strategy
+from typing import Callable, Dict, List
 
 
 class Backtest:
 
-    def __init__(self, **kwargs):
+    def __init__(self, rebdates: List[str], **kwargs):
+        self.rebdates = rebdates
         self.data = {}
         self.strategy: Strategy = Strategy([])
         self.optimization: Optimization = None
@@ -46,20 +48,20 @@ class Backtest:
 
     def run(self) -> None:
 
-        rebdates = self.settings['rebdates']
+        rebdates = self.rebdates
         for rebdate in rebdates:
             print(f"Rebalancing date: {rebdate}")
 
             # Prepare optimization and solve it
             ## Prepare optimization data
             self.prepare_optimization_data(rebdate = rebdate)
-            ## Load initial portfolio (i.e., the one from last rebalancing if such exists).
-            initial_portfolio = self.strategy.get_initial_portfolio(rebalancing_date = rebdate)
+            ## Load previous portfolio (i.e., the one from last rebalancing if such exists).
+            prev_portfolio = self.strategy.get_initial_portfolio(rebalancing_date = rebdate)
             ## Floated weights
-            x_init = initial_portfolio.initial_weights(return_series = self.data['return_series'],
-                                                       selection = self.data['return_series'].columns,
-                                                       end_date = rebdate,
-                                                       rescale = False)
+            x_init = prev_portfolio.initial_weights(selection = self.data['return_series'].columns,
+                                                return_series = self.data['return_series'],
+                                                end_date = rebdate,
+                                                rescale = False)
 
             self.optimization.params['x_init'] = x_init
 

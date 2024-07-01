@@ -9,11 +9,21 @@ from constraints import Constraints
 from optimization_data import OptimizationData
 
 
+IGNORED_SOLVERS = {'gurobi', # Restricted license - for non-production use only - expires 2025-11-24
+                    'mosek', # Commercial solver
+                    'ecos', # LinAlgError: 0-dimensional array given. Array must be at least two-dimensional
+                    'scs', # ValueError: Failed to parse cone field bu
+                    'piqp',
+                    'proxqp',
+                    'clarabel'
+                  }
+
+SPARSE_SOLVERS = {'clarabel', 'ecos','gurobi', 'mosek', 'highs', 'qpalm', 'osqp', 'qpswift', 'scs'}
+ALL_SOLVERS = {'clarabel', 'cvxopt', 'daqp', 'ecos', 'gurobi', 'highs', 'mosek', 'osqp', 'piqp', 'proxqp', 'qpalm', 'quadprog', 'scs'}
+USABLE_SOLVERS  = ALL_SOLVERS - IGNORED_SOLVERS
+
 
 # This class converts an financial optimization problem to a standard quadratic optimization.
-# This is the last step before passing problems to solvers.
-
-
 class QuadraticProgram(dict):
 
     def __init__(self, *args, **kwargs):
@@ -169,7 +179,7 @@ class QuadraticProgram(dict):
                                     lb = self.get('lb'),
                                     ub = self.get('ub'))
         # Convert to sparse matrices for best performance
-        if self.solver in ['clarabel', 'ecos','gurobi', 'mosek', 'highs', 'qpalm', 'osqp', 'qpswift', 'scs']:
+        if self.solver in SPARSE_SOLVERS:
             if self['params']['sparse']:
                 if problem.P is not None:
                     problem.P = scipy.sparse.csc_matrix(problem.P)
