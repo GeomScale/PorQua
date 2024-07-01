@@ -96,9 +96,9 @@ class Constraints:
         if not all(isinstance(item, str) for item in selection):
             raise ValueError("argument 'selection' has to be a character vector.")
         self.selection = selection
-        self.budget = {'Amat': pd.DataFrame(dtype='float64'), 'sense': None, 'rhs': None}
-        self.box = {'box_type': 'NA', 'lower': pd.Series(dtype='float64'), 'upper': pd.Series(dtype='float64')}
-        self.linear = {'Amat': pd.DataFrame(dtype='float64'), 'sense': pd.Series(dtype='float64'), 'rhs': pd.Series(dtype='float64')}
+        self.budget = {'Amat': pd.DataFrame, 'sense': None, 'rhs': None}
+        self.box = {'box_type': 'NA', 'lower': pd.Series, 'upper': pd.Series}
+        self.linear = {'Amat': pd.DataFrame, 'sense': pd.Series, 'rhs': pd.Series}
         self.l1 = {}
         return None
 
@@ -134,8 +134,8 @@ class Constraints:
         return None
 
     def add_linear(self,
-                   Amat: pd.DataFrame(dtype='float64') = None,
-                   a_values: pd.Series(dtype='float64') = None,
+                   Amat: pd.DataFrame = None,
+                   a_values: pd.Series = None,
                    sense: str = '=',
                    rhs = None,
                    name: str = None) -> None:
