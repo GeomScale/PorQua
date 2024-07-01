@@ -57,11 +57,14 @@ class QuadraticProgram(dict):
         h = np.append(h, np.append(np.append(x_init, x_init * (-1)), to_budget))
 
         # Equality constraints
-        if self.get('A').ndim == 1:
-            A = np.append(self.get('A'), np.zeros(n))
+        if self.get('A') is not None:
+            if self.get('A').ndim == 1:
+                A = np.append(self.get('A'), np.zeros(n))
+            else:
+                A = np.zeros(shape = (self.get('A').shape[0], 2*n))
+                A[0:self.get('A').shape[0], 0:n] = self.get('A')
         else:
-            A = np.zeros(shape = (self.get('A').shape[0], 2*n))
-            A[0:self.get('A').shape[0], 0:n] = self.get('A')
+            A = None
 
         # Override the original matrices
         self['P'] = P
@@ -147,11 +150,14 @@ class QuadraticProgram(dict):
         h = np.append(h, np.append(x_init, x_init * (-1)))
 
         # Equality constraints
-        if self.get('A').ndim == 1:
-            A = np.append(self.get('A'), np.zeros(n))
+        if self.get('A') is not None:
+            if self.get('A').ndim == 1:
+                A = np.append(self.get('A'), np.zeros(n))
+            else:
+                A = np.zeros(shape = (self.get('A').shape[0], 2*n))
+                A[0:self.get('A').shape[0], 0:n] = self.get('A')
         else:
-            A = np.zeros(shape = (self.get('A').shape[0], 2*n))
-            A[0:self.get('A').shape[0], 0:n] = self.get('A')
+            A = None
 
         # Override the original matrices
         self['P'] = P
