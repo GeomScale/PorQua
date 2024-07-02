@@ -3,7 +3,7 @@ import pandas as pd
 import qpsolvers
 from qpsolvers import solve_qp
 import scipy
-from helper_functions import nearestPD, to_numpy
+from helper_functions import isPD, nearestPD, to_numpy
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
@@ -41,7 +41,6 @@ class QuadraticProgram(dict):
         if self.get('P') is not None:
             P = np.zeros(shape = (2*n, 2*n))
             P[0:n, 0:n] = self.get('P')
-            P = nearestPD(P)
         q = np.append(self.get('q'), np.zeros(n))
 
         # Inequality constraints
@@ -80,8 +79,8 @@ class QuadraticProgram(dict):
         return None
 
     def linearize_leverage_constraint(self,
-                                      N = None,
-                                      leverage_budget = 2) -> None:
+                                    N = None,
+                                    leverage_budget = 2) -> None:
         # Dimensions
         n = len(self.get('q'))
         mG = 0 if self.get('G') is None else self.get('G').shape[0]
@@ -91,7 +90,6 @@ class QuadraticProgram(dict):
         if self.get('P') is not None:
             P = np.zeros(shape = (n+2*N, n+2*N))
             P[0:n, 0:n] = self.get('P')
-            P = nearestPD(P)
         q = np.append(self.get('q'), np.zeros(2*N))
 
         # Inequality constraints
@@ -135,7 +133,6 @@ class QuadraticProgram(dict):
         if self.get('P') is not None:
             P = np.zeros(shape = (2*n, 2*n))
             P[0:n, 0:n] = self.get('P')
-            P = nearestPD(P)
         q = np.append(self.get('q'), np.full(n, transaction_cost))
 
         # Inequality constraints
@@ -176,6 +173,11 @@ class QuadraticProgram(dict):
         if self.solver in ['ecos', 'scs', 'clarabel']:
             if self.get('b').size == 1 :
                 self['b'] = np.array(self.get('b')).reshape(-1)
+
+        P = self.get('P')
+        if P is not None and not isPD(P):
+            self['P'] = nearestPD(P)
+
         problem = qpsolvers.Problem(P = self.get('P'),
                                     q = self.get('q'),
                                     G = self.get('G'),

@@ -69,13 +69,16 @@ class Backtest:
             self.optimization.set_objective(optimization_data = self.optimization_data)
 
             # Solve the optimization problem
-            self.optimization.solve()
+            try:
+                self.optimization.solve()
+            except Exception as error:
+                raise RuntimeError(error)
+            finally:
+                # Append the optimized portfolio to the strategy, especially the failed ones for debugging
+                weights = self.optimization.results['weights']
+                self.models.append(self.optimization.model)
 
-            # Append the optimized portfolio to the strategy
-            weights = self.optimization.results['weights']
-            self.models.append(self.optimization.model)
-
-            portfolio = Portfolio(rebalancing_date = rebdate, weights = weights)
+            portfolio = Portfolio(rebalancing_date = rebdate, weights = weights, init_weights = x_init)
             self.strategy.portfolios.append(portfolio)
 
         return None
