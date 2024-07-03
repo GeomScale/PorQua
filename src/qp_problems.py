@@ -66,11 +66,11 @@ class QuadraticProgram(dict):
             A = None
 
         # Override the original matrices
-        self['P'] = P
-        self['q'] = q
-        self['G'] = G
-        self['h'] = h
-        self['A'] = A
+        self.update({'P': P,
+                     'q': q,
+                     'G': G,
+                     'h': h,
+                     'A': A})
         if self.get('lb') is not None:
             self['lb'] = np.append(self.get('lb'), np.zeros(n))
         if self.get('ub') is not None:
@@ -109,12 +109,12 @@ class QuadraticProgram(dict):
         b = np.append(self.get('b'), np.zeros(N))
 
         # Override the original matrices
-        self['P'] = P
-        self['q'] = q
-        self['G'] = G
-        self['h'] = h
-        self['A'] = A
-        self['b'] = b
+        self.update({'P': P,
+                     'q': q,
+                     'G': G,
+                     'h': h,
+                     'A': A,
+                     'b': b})
         if self.get('lb') is not None:
             self['lb'] = np.append(self.get('lb'), np.zeros(2*N))
         if self.get('ub') is not None:
@@ -157,11 +157,11 @@ class QuadraticProgram(dict):
             A = None
 
         # Override the original matrices
-        self['P'] = P
-        self['q'] = q
-        self['G'] = G
-        self['h'] = h
-        self['A'] = A
+        self.update({'P': P,
+                     'q': q,
+                     'G': G,
+                     'h': h,
+                     'A': A})
         if self.get('lb') is not None:
             self['lb'] = np.append(self.get('lb'), np.zeros(n))
         if self.get('ub') is not None:
@@ -203,6 +203,6 @@ class QuadraticProgram(dict):
         return None
 
     # 0.5 * x' * P * x + q' * x + const
-    def objective_value(self, x: np.ndarray) -> float:
-        const = 0 if self.get('constant') is None else to_numpy(self['constant']).item()
+    def objective_value(self, x: np.ndarray, with_const: bool = True) -> float:
+        const = 0 if self.get('constant') is None or not with_const else self['constant']
         return (0.5 * (x @ self.get('P') @ x) + self.get('q') @ x).item() + const

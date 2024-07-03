@@ -17,14 +17,9 @@ import numpy as np
 import helper_functions
 
 
-
-
-
-
 # --------------------------------------------------------------------------
 # Helper functions
 # --------------------------------------------------------------------------
-
 
 def match_arg(x, lst):
     return [el for el in lst if x in el][0]
@@ -77,8 +72,6 @@ def linear_constraint(Amat = None,
     if a_values is not None:
         ans['a_values'] = a_values
     return ans
-
-
 
 
 # --------------------------------------------------------------------------
@@ -182,7 +175,7 @@ class Constraints:
         self.l1[name] = con
         return None
 
-    def to_GhAb(self, lbub_to_G = False) -> Dict[str, pd.DataFrame]:
+    def to_GhAb(self, lbub_to_G: bool = False) -> Dict[str, pd.DataFrame]:
         A = None
         b = None
         G = None

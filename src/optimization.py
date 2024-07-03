@@ -91,12 +91,8 @@ class Optimization(ABC):
     def model_qpsolvers(self) -> None:
         GhAb = self.constraints.to_GhAb()
 
-        if self.constraints.box['box_type'] == 'NA':
-            lb = None
-            ub = None
-        else:
-            lb = self.constraints.box['lower'].to_numpy()
-            ub = self.constraints.box['upper'].to_numpy()
+        lb = self.constraints.box['lower'].to_numpy() if not self.constraints.box['box_type'] == 'NA' else None
+        ub = self.constraints.box['upper'].to_numpy() if not self.constraints.box['box_type'] == 'NA' else None
 
         self.model = qp_problems.QuadraticProgram(P = self.objective['P'],
                                         q = self.objective['q'],
