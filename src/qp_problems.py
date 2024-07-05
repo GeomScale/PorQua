@@ -3,7 +3,7 @@ import pandas as pd
 import qpsolvers
 from qpsolvers import solve_qp
 import scipy
-from helper_functions import isPD, nearestPD, to_numpy
+from helper_functions import isPD, nearestPD, to_numpy, concat_constant_columns
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
@@ -56,25 +56,19 @@ class QuadraticProgram(dict):
         h = np.append(h, np.append(np.append(x_init, x_init * (-1)), to_budget))
 
         # Equality constraints
-        if self.get('A') is not None:
-            if self.get('A').ndim == 1:
-                A = np.append(self.get('A'), np.zeros(n))
-            else:
-                A = np.zeros(shape = (self.get('A').shape[0], 2*n))
-                A[0:self.get('A').shape[0], 0:n] = self.get('A')
-        else:
-            A = None
+        A = concat_constant_columns(self.get('A'), n)
+
+        lb = concat_constant_columns(self.get('lb'), n)
+        ub = concat_constant_columns(self.get('ub'), n, float('inf'))
 
         # Override the original matrices
         self.update({'P': P,
-                     'q': q,
-                     'G': G,
-                     'h': h,
-                     'A': A})
-        if self.get('lb') is not None:
-            self['lb'] = np.append(self.get('lb'), np.zeros(n))
-        if self.get('ub') is not None:
-            self['ub'] = np.append(self.get('ub'), np.full(n, float('inf')))
+                    'q': q,
+                    'G': G,
+                    'h': h,
+                    'A': A,
+                    'lb': lb,
+                    'ub': ub})
 
         return None
 
@@ -108,17 +102,18 @@ class QuadraticProgram(dict):
         A[mA:(mA+N), (n+N):(n+2*N)] = np.eye(N) * (-1)
         b = np.append(self.get('b'), np.zeros(N))
 
+        lb = concat_constant_columns(self.get('lb'), 2*N)
+        ub = concat_constant_columns(self.get('ub'), 2*N, float('inf'))
+
         # Override the original matrices
         self.update({'P': P,
-                     'q': q,
-                     'G': G,
-                     'h': h,
-                     'A': A,
-                     'b': b})
-        if self.get('lb') is not None:
-            self['lb'] = np.append(self.get('lb'), np.zeros(2*N))
-        if self.get('ub') is not None:
-            self['ub'] = np.append(self.get('ub'), np.full(2*N, float('inf')))
+                    'q': q,
+                    'G': G,
+                    'h': h,
+                    'A': A,
+                    'b': b,
+                    'lb': lb,
+                    'ub': ub})
 
         return None
 
@@ -147,25 +142,19 @@ class QuadraticProgram(dict):
         h = np.append(h, np.append(x_init, x_init * (-1)))
 
         # Equality constraints
-        if self.get('A') is not None:
-            if self.get('A').ndim == 1:
-                A = np.append(self.get('A'), np.zeros(n))
-            else:
-                A = np.zeros(shape = (self.get('A').shape[0], 2*n))
-                A[0:self.get('A').shape[0], 0:n] = self.get('A')
-        else:
-            A = None
+        A = concat_constant_columns(self.get('A'), n)
+
+        lb = concat_constant_columns(self.get('lb'), n)
+        ub = concat_constant_columns(self.get('ub'), n, 10**6)
 
         # Override the original matrices
         self.update({'P': P,
-                     'q': q,
-                     'G': G,
-                     'h': h,
-                     'A': A})
-        if self.get('lb') is not None:
-            self['lb'] = np.append(self.get('lb'), np.zeros(n))
-        if self.get('ub') is not None:
-            self['ub'] = np.append(self.get('ub'), np.full(n, 10**6))
+                    'q': q,
+                    'G': G,
+                    'h': h,
+                    'A': A,
+                    'lb': lb,
+                    'ub': ub})
 
         return None
 

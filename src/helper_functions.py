@@ -132,7 +132,18 @@ def serialize_solution(name_suffix, solution, runtime):
         pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def to_numpy(data):
-    if hasattr(data, 'to_numpy'):
-        return data.to_numpy()
+    return data.to_numpy() if hasattr(data, 'to_numpy') else data
+
+def concat_constant_columns(X, extra_cols, value = 0):
+    if X is None:
+        return None
+
+    if X.ndim == 1:
+        to_concat = np.zeros(extra_cols) if value == 0 else np.full(extra_cols, value)
+        X_new = np.append(X, to_concat)
     else:
-        return data
+        new_shape = (X.shape[0], X.shape[1] + extra_cols)
+        X_new = np.zeros(new_shape) if value == 0 else np.full(new_shape, value)
+        X_new[0:X.shape[0], 0:X.shape[1]] = X
+
+    return X_new
