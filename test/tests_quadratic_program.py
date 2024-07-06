@@ -1,14 +1,10 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### TESTS FOR CLASS QuadraticProgram
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard
-# This version:     07.01.2024
-# First version:    07.01.2024
-# --------------------------------------------------------------------------
-
+# Licensed under GNU LGPL.3, see LICENCE file
 
 
 import unittest
@@ -17,15 +13,14 @@ import pandas as pd
 import numpy as np
 import scipy
 import qpsolvers
-from qpsolvers import solve_qp
 from typing import Tuple
 import sys
 import pickle
-import json
 import time
-sys.path.insert(1, '../src')
+sys.path.insert(1, 'src')
 
 from helper_functions import load_data, to_numpy
+from constraints import Constraints
 from covariance import Covariance
 from optimization import *
 from optimization_data import OptimizationData
@@ -74,35 +69,59 @@ class TestQuadraticProgram(unittest.TestCase):
 # --------------------------------------------------------------------------
 class TestLeastSquares(TestQuadraticProgram):
 
+    def __init__(self, testname, universe, solver_name, params):
+        super().__init__(testname, universe, solver_name)
+        self.params = params
+
     def setUp(self):
         self.start_time = time.time()
 
     def tearDown(self):
         self.run_time = time.time() - self.start_time
-        print(f'{self.id()}-{self._universe}-{self._solver_name}: Elapsed time: {self.run_time:.3f}(s)')
-        # serialize_solution(f'ls_{self._universe}_{self._solver_name}', self.solution, self.run_time)
+        recomputed = self.optim.model.objective_value(self.solution.x, False)
+        print(f'{self._universe}-{self._solver_name}-{self.params}:\n\t* Found = {self.solution.found}\n\t* Utility = {recomputed}\n\t* Elapsed time: {self.run_time:.3f}(s)')
 
+        self.assertTrue(self.solution.found)
 
-    def prep_optim(self, constraints, rebdate: str = None) -> None:
+        from_solver = self.solution.obj
+        if from_solver is not None:
+            self.assertAlmostEqual(from_solver, recomputed)
+
+    def prep_optim(self) -> None:
+        selection = self.data['X'].columns
+
         # Initialize optimization object
         optim = LeastSquares(solver_name = self._solver_name)
+        optim.params['l2_penalty'] = self.params.get('l2_penalty', 0)
 
         # Add constraints
+        constraints = Constraints(selection = selection)
+
+        if self.params.get('add_budget', False):
+            constraints.add_budget()
+        if self.params.get('add_box', None) is not None:
+            constraints.add_box(self.params.get('add_box'))
+        if self.params.get('add_ineq', False):
+            linear_constraints = pd.DataFrame(np.random.rand(3, selection.size), columns=selection)
+            sense = pd.Series(np.repeat('<=', 3))
+            rhs = pd.Series(np.full(3, 0.5))
+            constraints.add_linear(linear_constraints, None, sense, rhs, None)
+        if self.params.get('add_l1', False):
+            constraints.add_l1('turnover', rhs = 1, x0 = dict(zip(selection, np.zeros(selection.size))))
+
         optim.constraints = constraints
 
         # Set objective
         optimization_data = OptimizationData(X = self.data['X'], y = self.data['y'], align = True)
-        optim.set_objective(optimization_data = optimization_data)
+        optim.set_objective(optimization_data)
 
         # Ensure that P and q are numpy arrays
         if 'P' in optim.objective.keys():
             optim.objective['P'] = to_numpy(optim.objective['P'])
         else:
             raise ValueError("Missing matrix 'P' in objective.")
-        if 'q' in optim.objective.keys():
-            optim.objective['q'] = to_numpy(optim.objective['q'])
-        else:
-            optim.objective['q'] = np.zeros(len(optim.constraints.selection))
+
+        optim.objective['q'] = to_numpy(optim.objective['q']) if 'q' in optim.objective.keys() else np.zeros(selection.size)
 
         # Initialize the optimization model
         optim.model_qpsolvers()
@@ -113,45 +132,11 @@ class TestLeastSquares(TestQuadraticProgram):
         return None
 
     def least_square(self):
-        constraints = Constraints(selection = self.data['X'].columns)
-        constraints.add_box(box_type = 'LongOnly')
-        constraints.add_budget()
-
-        self.prep_optim(constraints)
+        self.prep_optim()
         self.optim.solve()
         self.solution = self.optim.model['solution']
         return None
 
-    def least_square_with_inequalities(self):
-        universe = self.data['X'].columns
-        constraints = Constraints(selection = universe)
-        constraints.add_budget()
-
-        linear_constraints = pd.DataFrame(np.random.rand(3, universe.size), columns=universe)
-        sense = pd.Series(np.repeat('<=', 3))
-        rhs = pd.Series(np.ones(3))
-        constraints.add_linear(linear_constraints, None, sense, rhs, None)
-
-        self.prep_optim(constraints)
-        self.optim.solve()
-        self.solution = self.optim.model['solution']
-        return None
-
-    def least_square_with_l1(self):
-        universe = self.data['X'].columns
-        constraints = Constraints(selection = universe)
-        constraints.add_budget()
-
-        linear_constraints = pd.DataFrame(np.random.rand(3, universe.size), columns=universe)
-        sense = pd.Series(np.repeat('<=', 3))
-        rhs = pd.Series(np.ones(3))
-        constraints.add_linear(linear_constraints, None, sense, rhs, None)
-        constraints.add_l1('turnover', rhs = 1, x0 = dict(zip(universe, np.zeros(universe.size))))
-
-        self.prep_optim(constraints)
-        self.optim.solve()
-        self.solution = self.optim.model['solution']
-        return None
 
 
 if __name__ == '__main__':
@@ -159,16 +144,20 @@ if __name__ == '__main__':
 
     suite.addTest(TestQuadraticProgram('test_add_constraints'))
 
-    universes = ['msci', 'usa']
-    solvers = list(set(qpsolvers.solvers.available_solvers) - {'gurobi', 'mosek', 'ecos', 'proxqp', 'piqp', 'scs'}) # FIXME: it depends on the installation?
+    universes = ['msci']
+    solvers = ['highs', 'cvxopt']
+    constraint_dict = {'l2_penalty': [0, 1],
+                        'add_budget': [True, False],
+                        'add_box': ["LongOnly", "LongShort", "Unbounded"],
+                        'add_ineq': [True, False],
+                        'add_l1': [True, False]}
 
-    test_params = product(universes, solvers)
+    constraints_params = list(dict(zip(constraint_dict, x)) for x in product(*constraint_dict.values()))
+    tests = product(universes, constraints_params, solvers)
     save_log = {universe : {} for universe in universes}
-    for universe, solver in test_params:
-        suite.addTest(TestLeastSquares('least_square', universe, solver))
-        suite.addTest(TestLeastSquares('least_square_with_inequalities', universe, solver))
-        suite.addTest(TestLeastSquares('least_square_with_l1', universe, solver))
 
+    for universe, params, solver in tests:
+        suite.addTest(TestLeastSquares('least_square', universe, solver, params))
 
     runner = unittest.TextTestRunner()
     runner.run(suite)
