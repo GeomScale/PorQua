@@ -91,7 +91,7 @@ class TestLeastSquares(TestQuadraticProgram):
         selection = self.data['X'].columns
 
         # Initialize optimization object
-        optim = LeastSquares(solver_name = self._solver_name)
+        optim = LeastSquares(solver_name = self._solver_name, sparse = True)
         optim.params['l2_penalty'] = self.params.get('l2_penalty', 0)
 
         # Add constraints
