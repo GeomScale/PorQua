@@ -1,13 +1,10 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### GSCO 2024 - PORTFOLIO AND STRATEGY CLASSES
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard
-# This version:     13.06.2024
-# First version:    13.06.2024
-# --------------------------------------------------------------------------
+# Licensed under GNU LGPL.3, see LICENCE file
 
 
 import pandas as pd
@@ -38,7 +35,8 @@ def floating_weights(X, w, start_date, end_date, rescale = True):
         raise ValueError('Not all assets in w are contained in X.')
 
     X_tmp = X.loc[start_date:end_date, wnames].copy().fillna(0)
-    # short_positions = wnames[ w.iloc[0,:] < 0 ]
+    # TODO : To extend to short positions cases when the weights can be negative
+    # short_positions = wnames[w.iloc[0,:] < 0 ]
     # if len(short_positions) > 0:
     #     X_tmp[short_positions] = X_tmp[short_positions] * (-1)
     xmat = 1 + X_tmp
@@ -60,10 +58,12 @@ class Portfolio:
     def __init__(self,
                  rebalancing_date: str = None,
                  weights: dict = {},
-                 name: str = None):
+                 name: str = None,
+                 init_weights: dict = {}):
         self.rebalancing_date = rebalancing_date
         self.weights = weights
         self.name = name
+        self.init_weights = init_weights
 
     @property
     def weights(self):
@@ -76,7 +76,7 @@ class Portfolio:
         return pd.Series(self._weights)
 
     @weights.setter
-    def weights(self, new_weights):
+    def weights(self, new_weights: dict):
         if not isinstance(new_weights, dict):
             if hasattr(new_weights, 'to_dict'):
                 new_weights = new_weights.to_dict()
@@ -133,16 +133,15 @@ class Portfolio:
                                              end_date = end_date,
                                              rescale = rescale)
                 w_floated = w_float.iloc[-1]
-                for key in w_init.keys():
-                    if key in w_floated.keys():
-                        w_init[key] = w_floated[key]
+
+                w_init.update({key: w_floated[key] for key in set(w_init.keys()) & set(w_floated.keys())})
                 self._initial_weights = w_init
             else:
-                self._initial_weights = {key: 0 for key in selection}
+                self._initial_weights = None # {key: 0 for key in selection}
 
         return self._initial_weights
 
-    def turnover(self, portfolio, return_series: pd.DataFrame, rescale = True):
+    def turnover(self, portfolio: "Portfolio", return_series: pd.DataFrame, rescale = True):
 
         if portfolio.rebalancing_date < self.rebalancing_date:
             w_init = portfolio.initial_weights(selection = self.weights.keys(),
@@ -157,9 +156,7 @@ class Portfolio:
                                           rescale = rescale)
             w_current = portfolio.weights
 
-        to = (pd.Series(w_init.values()) - pd.Series(w_current.values())).abs().sum()
-        return to
-
+        return (pd.Series(w_init.values()) - pd.Series(w_current.values())).abs().sum()
 
 
 
@@ -255,16 +252,14 @@ class Strategy:
         rebdates = self.get_rebalancing_dates()
         ret_list = []
         for rebdate in rebdates:
-            if rebdate < rebdates[-1]:
-                end_date = rebdates[rebdates.index(rebdate) + 1]
-            else:
-                end_date = return_series.index[-1]
+            end_date = rebdates[rebdates.index(rebdate) + 1] if rebdate < rebdates[-1] else return_series.index[-1]
+
             portfolio = self.get_portfolio(rebdate)
             w_float = portfolio.float_weights(return_series = return_series,
                                               end_date = end_date,
                                               rescale = False)  # Note that rescale is hardcoded to False.
-            short_positions = [portfolio.weights[key] for key in portfolio.weights.keys() if portfolio.weights[key] < 0]
-            long_positions = [portfolio.weights[key] for key in portfolio.weights.keys() if portfolio.weights[key] >= 0]
+            short_positions = list(filter(lambda x: x < 0, portfolio.weights.values()))
+            long_positions = list(filter(lambda x: x >= 0, portfolio.weights.values()))
             margin = abs(sum(short_positions))
             cash = max(min(1 - sum(long_positions), 1), 0)
             loan = 1 - (sum(long_positions) + cash) - (sum(short_positions) + margin)

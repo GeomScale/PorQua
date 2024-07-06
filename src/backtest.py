@@ -1,18 +1,17 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### GSCO 2024 - BACKTEST
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard
-# This version:     13.06.2024
-# First version:    13.06.2024
-# --------------------------------------------------------------------------
+# Licensed under GNU LGPL.3, see LICENCE file
+
 
 
 # Load base and 3rd party packages
 import pandas as pd
 import numpy as np
+
 from optimization import *
 from constraints import Constraints
 from optimization_data import OptimizationData
@@ -63,7 +62,7 @@ class Backtest:
                                                 end_date = rebdate,
                                                 rescale = False)
 
-            self.optimization.params['x_init'] = x_init
+            self.optimization.params['x0'] = x_init
 
             ## Set objective
             self.optimization.set_objective(optimization_data = self.optimization_data)

@@ -1,7 +1,16 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
+
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
+
+# Licensed under GNU LGPL.3, see LICENCE file
+
+
+
 import numpy as np
 import pandas as pd
 import qpsolvers
-from qpsolvers import solve_qp
 import scipy
 from helper_functions import isPD, nearestPD, to_numpy, concat_constant_columns
 from covariance import Covariance
@@ -175,9 +184,10 @@ class QuadraticProgram(dict):
                                     b = self.get('b'),
                                     lb = self.get('lb'),
                                     ub = self.get('ub'))
+
         # Convert to sparse matrices for best performance
         if self.solver in SPARSE_SOLVERS:
-            if self['params']['sparse']:
+            if self['params'].get('sparse'):
                 if problem.P is not None:
                     problem.P = scipy.sparse.csc_matrix(problem.P)
                 if problem.A is not None:

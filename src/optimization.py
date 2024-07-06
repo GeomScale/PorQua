@@ -1,13 +1,10 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### OPTIMIZATION
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard, Minhha Ho
-# This version:     24.05.2024
-# First version:    24.05.2024
-# --------------------------------------------------------------------------
+# Licensed under GNU LGPL.3, see LICENCE file
 
 
 
@@ -19,7 +16,7 @@ import pandas as pd
 from qpsolvers import solve_qp
 import scipy
 
-from helper_functions import nearestPD, to_numpy
+from helper_functions import to_numpy
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
@@ -89,6 +86,8 @@ class Optimization(ABC):
         return None
 
     def model_qpsolvers(self) -> None:
+        universe = self.constraints.selection
+
         GhAb = self.constraints.to_GhAb()
 
         lb = self.constraints.box['lower'].to_numpy() if not self.constraints.box['box_type'] == 'NA' else None
@@ -105,35 +104,28 @@ class Optimization(ABC):
                                         ub = ub,
                                         params = self.params)
 
+        # Choose which reference position to use: prefer OptimizationParams
+        tocon = self.constraints.l1.get('turnover')
+        x0 = self.params['x0'] if 'x0' in self.params.keys() else tocon['x0'] if tocon is not None else None
+        if x0 is not None:
+            x_init = dict.fromkeys(universe, 0)
+            for asset in universe:
+                if x0.get(asset) is not None:
+                    x_init[asset] = x0[asset]
+
         # Transaction cost in the objective
         transaction_cost = self.params.get('transaction_cost')
-        if transaction_cost is not None:
-            tocon = self.constraints.l1['turnover']
-            x_init = np.array(list(tocon['x0'].values()))
+        if transaction_cost is not None and x0 is not None:
             self.model.linearize_turnover_objective(x_init, transaction_cost)
 
         # Turnover constraint
-        tocon = self.constraints.l1.get('turnover')
-        if tocon and not transaction_cost:
-            if self.params.get('x_init') is not None:
-                prev_positions = self.params['x_init']
-                x0 = {}
-                for asset in self.constraints.selection:
-                    if prev_positions.get(asset):
-                        x0[asset] = prev_positions[asset]
-                    else:
-                        x0[asset] = 0
-
-                x_init = pd.Series(x0)
-            else:
-                x_init = np.array(list(tocon['x0'].values()))
-
-            self.model.linearize_turnover_constraint(x_init, tocon['rhs'])
+        if tocon and not transaction_cost and x0 is not None:
+            self.model.linearize_turnover_constraint(pd.Series(x_init), tocon['rhs'])
 
         # Leverage constraint
         levcon = self.constraints.l1.get('leverage')
         if levcon is not None:
-            self.model.linearize_leverage_constraint(N = len(self.constraints.selection), leverage_budget = levcon['rhs'])
+            self.model.linearize_leverage_constraint(N = len(universe), leverage_budget = levcon['rhs'])
         return None
 
 
@@ -155,11 +147,11 @@ class LeastSquares(Optimization):
 
         # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
-        q = -2 * X.T @ y
-        constant = (y.T @ y)
+        q = to_numpy(-2 * X.T @ y).reshape((-1,))
+        constant = to_numpy(y.T @ y).item()
 
         l2_penalty = self.params.get('l2_penalty')
-        if l2_penalty is not None:
+        if l2_penalty is not None and l2_penalty != 0:
             P = P + 2 * l2_penalty * np.eye(X.shape[1])
 
         self.objective = Objective(P = P, q = q, constant = constant)

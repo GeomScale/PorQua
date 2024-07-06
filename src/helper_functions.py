@@ -1,13 +1,10 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### HELPER FUNCTIONS
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard, Minhha Ho
-# This version:     24.05.2024
-# First version:    24.05.2024
-# --------------------------------------------------------------------------
+# Licensed under GNU LGPL.3, see LICENCE file
 
 
 
@@ -28,8 +25,7 @@ def load_data(universe):
 
 def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
-    # path = fr'{os.getcwd()}\\data\\' if path is None else path
-    path = '/'.join(os.getcwd().split('/')[:-1] + ['data/']) if not path else path
+    path = os.path.join(os.getcwd(), 'data/') if path is None else path
     # Load msci country index return series
     df = pd.read_csv(f'{path}msci_country_indices.csv',
                     sep=';',
@@ -55,9 +51,8 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
 def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
-    # path = f'{os.getcwd()}\\data\\' if path is None else path
     # Load U.S. security data
-    path = '/'.join(os.getcwd().split('/')[:-1] + ['data/']) if not path else path
+    path = os.path.join(os.getcwd(), 'data/') if not path else path
     df_secd = pd.read_csv(f'{path}usa_returns.csv', index_col = 0, parse_dates=True)
     df_secd.index = pd.to_datetime(df_secd.index, format='%Y-%m-%d')
 
