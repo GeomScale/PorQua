@@ -1,14 +1,10 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### COVARIANCE
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard, Minhha Ho
-# This version:     24.05.2024
-# First version:    24.05.2024
-# --------------------------------------------------------------------------
-
+# Licensed under GNU LGPL.3, see LICENCE file
 
 
 
@@ -16,7 +12,6 @@ import pandas as pd
 import numpy as np
 
 from helper_functions import isPD, nearestPD
-
 
 
 
@@ -84,5 +79,3 @@ def cov_linear_shrinkage(X, lambda_covmat_regularization = None):
             corrs.extend(np.diag(corrMat, k))
         sigmat = pd.DataFrame(sigmat.to_numpy() + lambda_covmat_regularization * np.mean(sig**2) * np.eye(d), columns=sigmat.columns, index=sigmat.index)
     return sigmat
-
-

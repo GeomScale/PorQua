@@ -1,13 +1,10 @@
+# GeoFin : a python library for portfolio optimization and index replication
+# GeoFin is part of GeomScale project
 
-############################################################################
-### CONSTRAINTS
-############################################################################
+# Copyright (c) 2024 Cyril Bachelard
+# Copyright (c) 2024 Minh Ha Ho
 
-# --------------------------------------------------------------------------
-# Cyril Bachelard, Minhha Ho
-# This version:     24.05.2024
-# First version:    24.05.2024
-# --------------------------------------------------------------------------
+# Licensed under GNU LGPL.3, see LICENCE file
 
 
 
