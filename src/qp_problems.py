@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import qpsolvers
 import scipy
-from helper_functions import isPD, nearestPD, to_numpy, concat_constant_columns
+from helper_functions import isPD, nearestPD, to_numpy
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
@@ -47,10 +47,8 @@ class QuadraticProgram(dict):
         m = 0 if self.get('G') is None else self.get('G').shape[0]
 
         # Objective
-        if self.get('P') is not None:
-            P = np.zeros(shape = (2*n, 2*n))
-            P[0:n, 0:n] = self.get('P')
-        q = np.append(self.get('q'), np.zeros(n))
+        P = np.pad(self['P'], (0, n)) if self.get('P') is not None else None
+        q = np.pad(self['q'], (0, n)) if self.get('q') is not None else None
 
         # Inequality constraints
         G = np.zeros(shape = (m+2*n+1, 2*n))
@@ -65,10 +63,11 @@ class QuadraticProgram(dict):
         h = np.append(h, np.append(np.append(x_init, x_init * (-1)), to_budget))
 
         # Equality constraints
-        A = concat_constant_columns(self.get('A'), n)
+        #A = concat_constant_columns(self.get('A'), n)
+        A = np.pad(self['A'], [(0, 0), (0, n)]) if self.get('A') is not None else None
 
-        lb = concat_constant_columns(self.get('lb'), n)
-        ub = concat_constant_columns(self.get('ub'), n, float('inf'))
+        lb = np.pad(self['lb'], (0,n)) if self.get('lb') is not None else None
+        ub = np.pad(self['ub'], (0,n), constant_values= float('inf')) if self.get('ub') is not None else None
 
         # Override the original matrices
         self.update({'P': P,
@@ -90,10 +89,8 @@ class QuadraticProgram(dict):
         mA = 1 if self.get('A').ndim == 1 else self.get('A').shape[0]
 
         # Objective
-        if self.get('P') is not None:
-            P = np.zeros(shape = (n+2*N, n+2*N))
-            P[0:n, 0:n] = self.get('P')
-        q = np.append(self.get('q'), np.zeros(2*N))
+        P = np.pad(self['P'], (0, 2*N)) if self.get('P') is not None else None
+        q = np.pad(self['q'], (0,2*N)) if self.get('q') is not None else None
 
         # Inequality constraints
         G = np.zeros(shape = (mG+1, n+2*N))
@@ -109,10 +106,10 @@ class QuadraticProgram(dict):
         A[mA:(mA+N), 0:N] = np.eye(N)
         A[mA:(mA+N), n:(n+N)] = np.eye(N)
         A[mA:(mA+N), (n+N):(n+2*N)] = np.eye(N) * (-1)
-        b = np.append(self.get('b'), np.zeros(N))
+        b = np.pad(self.get('b'), (0, N))
 
-        lb = concat_constant_columns(self.get('lb'), 2*N)
-        ub = concat_constant_columns(self.get('ub'), 2*N, float('inf'))
+        lb = np.pad(self['lb'], (0, 2*N)) if self.get('lb') is not None else None
+        ub = np.pad(self['ub'], (0, 2*N), constant_values= float('inf')) if self.get('ub') is not None else None
 
         # Override the original matrices
         self.update({'P': P,
@@ -134,10 +131,8 @@ class QuadraticProgram(dict):
         m = 0 if self.get('G') is None else self.get('G').shape[0]
 
         # Objective
-        if self.get('P') is not None:
-            P = np.zeros(shape = (2*n, 2*n))
-            P[0:n, 0:n] = self.get('P')
-        q = np.append(self.get('q'), np.full(n, transaction_cost))
+        P = np.pad(self['P'], (0, n)) if self.get('P') is not None else None
+        q = np.pad(self['q'], (0, n), constant_values=transaction_cost) if self.get('q') is not None else None
 
         # Inequality constraints
         G = np.zeros(shape = (m+2*n, 2*n))
@@ -151,10 +146,10 @@ class QuadraticProgram(dict):
         h = np.append(h, np.append(x_init, x_init * (-1)))
 
         # Equality constraints
-        A = concat_constant_columns(self.get('A'), n)
+        A = np.pad(self['A'], [(0,0), (0,n)]) if self.get('A') is not None else None
 
-        lb = concat_constant_columns(self.get('lb'), n)
-        ub = concat_constant_columns(self.get('ub'), n, 10**6)
+        lb = np.pad(self['lb'], (0,n)) if self.get('lb') is not None else None
+        ub = np.pad(self['ub'], (0,n), constant_values= float('inf')) if self.get('ub') is not None else None
 
         # Override the original matrices
         self.update({'P': P,

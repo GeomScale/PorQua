@@ -100,24 +100,22 @@ class Constraints:
             print("Existing budget constraint is overwritten\n")
         a_values = pd.Series([1] * len(self.selection), index = self.selection)
         self.budget = {'Amat': a_values,
-                       'sense': sense,
-                       'rhs': rhs}
+                        'sense': sense,
+                        'rhs': rhs}
         return None
 
     def add_box(self,
                 box_type = "LongOnly",
                 lower = None,
                 upper = None) -> None:
-
-        box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
         boxcon = box_constraint(box_type, lower, upper)
 
         if np.isscalar(boxcon['lower']):
-            boxcon['lower'] = pd.Series(np.repeat(boxcon['lower'], len(self.selection)), index=self.selection)
+            boxcon['lower'] = pd.Series(np.repeat(float(boxcon['lower']), len(self.selection)), index=self.selection)
         if np.isscalar(boxcon['upper']):
-            boxcon['upper'] = pd.Series(np.repeat(boxcon['upper'], len(self.selection)), index=self.selection)
+            boxcon['upper'] = pd.Series(np.repeat(float(boxcon['upper']), len(self.selection)), index=self.selection)
 
-        if not (boxcon['upper'] > boxcon['lower']).all():
+        if (boxcon['upper'] < boxcon['lower']).any():
             raise ValueError("Some lower bounds are higher than the corresponding upper bounds.")
 
         self.box = boxcon
@@ -193,7 +191,6 @@ class Constraints:
             h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
         if not self.linear['Amat'].empty:
-
             Amat = self.linear['Amat'].copy()
             rhs = self.linear['rhs'].copy()
 
@@ -220,5 +217,9 @@ class Constraints:
             if 'G_tmp' in locals():
                 G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
                 h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
+
+        # To ensure A and G are matrices (even with only 1 row)
+        A = A.reshape(-1, A.shape[-1]) if A is not None else None
+        G = G.reshape(-1, G.shape[-1]) if G is not None else None
 
         return {'G': G, 'h': h, 'A': A, 'b': b}
