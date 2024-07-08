@@ -104,19 +104,18 @@ class Optimization(ABC):
                                         ub = ub,
                                         params = self.params)
 
-        # Choose which reference position to use: prefer OptimizationParams
+        # Choose which reference position to be used
         tocon = self.constraints.l1.get('turnover')
-        x0 = self.params['x0'] if 'x0' in self.params.keys() else tocon['x0'] if tocon is not None else None
+        x0 = tocon['x0'] if tocon is not None and tocon.get('x0') is not None else self.params.get('x0')
         if x0 is not None:
-            x_init = dict.fromkeys(universe, 0)
+            x_init = {}
             for asset in universe:
-                if x0.get(asset) is not None:
-                    x_init[asset] = x0[asset]
+                x_init[asset] = x0.get(asset, 0)
 
         # Transaction cost in the objective
         transaction_cost = self.params.get('transaction_cost')
         if transaction_cost is not None and x0 is not None:
-            self.model.linearize_turnover_objective(x_init, transaction_cost)
+            self.model.linearize_turnover_objective(pd.Series(x_init), transaction_cost)
 
         # Turnover constraint
         if tocon and not transaction_cost and x0 is not None:

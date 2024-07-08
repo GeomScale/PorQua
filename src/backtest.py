@@ -8,8 +8,6 @@
 
 
 
-# Load base and 3rd party packages
-import pandas as pd
 import numpy as np
 
 from optimization import *
@@ -63,6 +61,7 @@ class Backtest:
                                                 rescale = False)
 
             self.optimization.params['x0'] = x_init
+            self.optimization.params['transaction_cost'] = self.settings.get('transaction_cost')
 
             ## Set objective
             self.optimization.set_objective(optimization_data = self.optimization_data)

@@ -1,6 +1,7 @@
 __pycache__/
 *.pickle
 *.json
+data/usa_features_old.parquet
 
 # C extensions
 *.so
