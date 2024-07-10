@@ -45,9 +45,7 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
 
-    data = {'X': X, 'y': y}
-    return data
-
+    return {'X': X, 'y': y}
 
 def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
@@ -69,9 +67,7 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y', dayfirst=True)
 
-    data = {'X': df_secd, 'df_funda': df_funda, 'y': y}
-    return data
-
+    return {'X': df_secd, 'df_funda': df_funda, 'y': y}
 
 def nearestPD(A):
     """Find the nearest positive-definite matrix to input

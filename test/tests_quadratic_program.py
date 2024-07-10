@@ -7,6 +7,8 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
+import sys
+import os
 import unittest
 from itertools import product
 import pandas as pd
@@ -14,12 +16,10 @@ import numpy as np
 import scipy
 import qpsolvers
 from typing import Tuple
-import sys
-import pickle
 import time
 sys.path.insert(1, 'src')
 
-from helper_functions import load_data, to_numpy
+from helper_functions import load_data_msci, to_numpy
 from constraints import Constraints
 from covariance import Covariance
 from optimization import *
@@ -33,7 +33,7 @@ class TestQuadraticProgram(unittest.TestCase):
         super().__init__(testname)
         self._universe = universe
         self._solver_name = solver_name
-        self.data = load_data(universe)
+        self.data = load_data_msci(os.path.join(os.getcwd(), 'test', f'test_data{os.sep}'))
 
     def test_add_constraints(self):
         universe = self.data['X'].columns
