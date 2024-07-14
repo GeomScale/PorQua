@@ -86,9 +86,9 @@ class Constraints:
         if not all(isinstance(item, str) for item in selection):
             raise ValueError("argument 'selection' has to be a character vector.")
         self.selection = selection
-        self.budget = {'Amat': pd.DataFrame, 'sense': None, 'rhs': None}
-        self.box = {'box_type': 'NA', 'lower': pd.Series, 'upper': pd.Series}
-        self.linear = {'Amat': pd.DataFrame, 'sense': pd.Series, 'rhs': pd.Series}
+        self.budget = {'Amat': None, 'sense': None, 'rhs': None}
+        self.box = {'box_type': 'NA', 'lower': None, 'upper': None}
+        self.linear = {'Amat': None, 'sense': None, 'rhs': None}
         self.l1 = {}
         return None
 
@@ -142,7 +142,7 @@ class Constraints:
         if isinstance(rhs, (int, float)):
             rhs = pd.Series([rhs])
 
-        if not self.linear['Amat'].empty:
+        if self.linear['Amat'] is not None:
             Amat = pd.concat([self.linear['Amat'], Amat], axis = 0, ignore_index = False)
             sense = pd.concat([self.linear['sense'], sense], axis = 0, ignore_index = False)
             rhs = pd.concat([self.linear['rhs'], rhs], axis = 0, ignore_index = False)
@@ -175,7 +175,7 @@ class Constraints:
         b = None
         G = None
         h = None
-        if not self.budget['Amat'].empty:
+        if self.budget['Amat'] is not None:
             if self.budget['sense'] == '=':
                 A = np.array(self.budget['Amat'], dtype = float)
                 b = np.array(self.budget['rhs'], dtype = float)
@@ -190,7 +190,7 @@ class Constraints:
             G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
             h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
-        if not self.linear['Amat'].empty:
+        if self.linear['Amat'] is not None:
             Amat = self.linear['Amat'].copy()
             rhs = self.linear['rhs'].copy()
 
