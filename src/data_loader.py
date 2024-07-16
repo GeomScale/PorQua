@@ -47,6 +47,9 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
     return {'X': X, 'y': y}
 
+# USA daily returns
+# SPTR.csv from 1996-01-20 to 2023-06-06
+# usa_returns.csv from 2005-01-03 to 2024-01-22
 def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
     # Load U.S. security data

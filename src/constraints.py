@@ -29,16 +29,12 @@ def box_constraint(box_type = "LongOnly",
     box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
 
     if box_type == "Unbounded":
-        if lower is None:
-            lower = float("-inf")
-        if upper is None:
-            upper = float("inf")
+        lower = float("-inf") if lower is None else lower
+        upper = float("inf") if upper is None else upper
     elif box_type == "LongShort":
-        if lower is None:
-            lower = -1
-        if upper is None:
-            upper = 1
-    else:
+        lower = -1 if lower is None else lower
+        upper = 1 if upper is None else upper
+    elif box_type == "LongOnly":
         if lower is None:
             if upper is None:
                 lower = 0
@@ -50,8 +46,8 @@ def box_constraint(box_type = "LongOnly",
                 if any(l < 0 for l in lower):
                     raise ValueError("Inconsistent lower bounds for box_type 'LongOnly'. "
                                     "Change box_type to LongShort or ensure that lower >= 0.")
-            if upper is None:
-                upper = lower * 0 + 1
+
+            upper = lower * 0 + 1 if upper is None else upper
 
     return {'box_type': box_type, 'lower': lower, 'upper': upper}
 

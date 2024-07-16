@@ -90,7 +90,7 @@ class QuadraticProgram(dict):
 
         # Objective
         P = np.pad(self['P'], (0, 2*N)) if self.get('P') is not None else None
-        q = np.pad(self['q'], (0,2*N)) if self.get('q') is not None else None
+        q = np.pad(self['q'], (0, 2*N)) if self.get('q') is not None else None
 
         # Inequality constraints
         G = np.zeros(shape = (mG+1, n+2*N))
