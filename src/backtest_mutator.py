@@ -27,7 +27,7 @@ class BacktestMutator:
     def __init__(self, data, start_date: str):
         self.data = data
         self.start_date = start_date
-        dates = data['return_series'].index
+        dates = data['return_series'].index.intersection(data['return_series_index'].index)
         self.full_timeline = dates[dates > start_date]
 
     def run(self, configs: List[BacktestConfig]):
@@ -69,6 +69,5 @@ class BacktestMutator:
             plt.plot(result[1]['sim'] - result[1]['index'], label=config.name)
         plt.legend()
         plt.show()
-
 
         return None
