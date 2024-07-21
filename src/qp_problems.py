@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import qpsolvers
 import scipy
+import pickle
 from helper_functions import isPD, nearestPD, to_numpy
 from covariance import Covariance
 from constraints import Constraints
@@ -200,3 +201,11 @@ class QuadraticProgram(dict):
     def objective_value(self, x: np.ndarray, with_const: bool = True) -> float:
         const = 0 if self.get('constant') is None or not with_const else self['constant']
         return (0.5 * (x @ self.get('P') @ x) + self.get('q') @ x).item() + const
+
+    def serialize(self, path, **kwargs):
+        with open(path, 'wb') as f:
+            pickle.dump(self, f, kwargs)
+
+    def load(path, **kwargs):
+        with open(path, 'rb') as f:
+            return pickle.load(path, kwargs)
