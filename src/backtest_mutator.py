@@ -62,9 +62,14 @@ class BacktestMutator:
         ax1.set_title('Number of assets')
         fig2, ax2 = plt.subplots()
         ax2.set_title('Difference with benchmark')
+        fig3, ax3 = plt.subplots()
+        ax3.set_title('Turnover')
 
         for result, summary in zip(results, summaries):
             ax1.plot(summary['number_of_assets'], label=result['config'].name)
             ax2.plot(summary['returns']['sim'] - summary['returns']['index'], label=result['config'].name)
+            ax3.plot(summary['turnover'], label=result['config'].name)
+
+        plt.legend(loc='upper center')
 
         return summaries
