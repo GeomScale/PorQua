@@ -10,6 +10,7 @@
 
 import numpy as np
 import pandas as pd
+import time
 from matplotlib import pyplot as plt
 from optimization import Optimization
 from backtest import Backtest
@@ -24,50 +25,46 @@ class BacktestConfig:
 
 
 class BacktestMutator:
-    def __init__(self, data, start_date: str):
+    def __init__(self, data, start_date: str, **kargs):
         self.data = data
         self.start_date = start_date
         dates = data['return_series'].index.intersection(data['return_series_index'].index)
         self.full_timeline = dates[dates > start_date]
+        self.settings = kargs
 
     def run(self, configs: List[BacktestConfig]):
-        results = {}
+        results = []
         for i, config in enumerate(configs):
+            if not self.settings.get('quiet'):
+                print(f'Running backtest {config.name}: {i}/{len(configs)}...')
+
             n_days = config.n_days
             rebdates = self.full_timeline[::n_days].strftime('%Y-%m-%d').tolist()
 
             # Initialize backtest object
-            bt = Backtest(rebdates = rebdates, width = config.lookback)
+            bt = Backtest(rebdates = rebdates, width = config.lookback, **self.settings)
             bt.data = self.data
             bt.optimization = config.optimization
 
+            start_time = time.time()
             bt.run()
+            elapsed_time = time.time() - start_time
 
-            # Simulation
-            sim_bt = bt.strategy.simulate(return_series = bt.data['return_series'], fc = 0, vc = 0)
-
-            # Analyze weights
-            bt.strategy.get_weights_df()
-
-            # Analyze simulation
-            sim = pd.concat({'sim': sim_bt, 'index': bt.data['return_series_index']}, axis = 1).dropna()
-            sim.columns = sim.columns.get_level_values(0)
-
-            sim = np.log(1 + sim).cumsum()
-
-            results[config] = [bt.strategy.number_of_assets(), sim]
+            results.append({'config' : config,
+                                'elapsed_time' : elapsed_time,
+                                'backtest' : bt})
         return results
 
     def plot_results(results):
-        plt.xticks([])
-        for config, result in results.items():
-            plt.plot(result[0], label=config.name)
-        plt.legend()
-        plt.show()
+        summaries = [result['backtest'].compute_summary() for result in results]
 
-        for config, result in results.items():
-            plt.plot(result[1]['sim'] - result[1]['index'], label=config.name)
-        plt.legend()
-        plt.show()
+        fig1, ax1 = plt.subplots()
+        ax1.set_title('Number of assets')
+        fig2, ax2 = plt.subplots()
+        ax2.set_title('Difference with benchmark')
 
-        return None
+        for result, summary in zip(results, summaries):
+            ax1.plot(summary['number_of_assets'], label=result['config'].name)
+            ax2.plot(summary['returns']['sim'] - summary['returns']['index'], label=result['config'].name)
+
+        return summaries

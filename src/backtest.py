@@ -47,7 +47,8 @@ class Backtest:
 
         rebdates = self.rebdates
         for rebdate in rebdates:
-            print(f"Rebalancing date: {rebdate}")
+            if not self.settings.get('quiet'):
+                print(f"Rebalancing date: {rebdate}")
 
             # Prepare optimization and solve it
             ## Prepare optimization data
@@ -61,7 +62,6 @@ class Backtest:
                                                 rescale = False)
 
             self.optimization.params['x0'] = x_init
-            self.optimization.params['transaction_cost'] = self.settings.get('transaction_cost')
 
             ## Set objective
             self.optimization.set_objective(optimization_data = self.optimization_data)
@@ -69,14 +69,31 @@ class Backtest:
             # Solve the optimization problem
             try:
                 self.optimization.solve()
+                weights = self.optimization.results['weights']
+                portfolio = Portfolio(rebalancing_date = rebdate, weights = weights, init_weights = x_init)
+                self.strategy.portfolios.append(portfolio)
             except Exception as error:
                 raise RuntimeError(error)
             finally:
                 # Append the optimized portfolio to the strategy, especially the failed ones for debugging
-                weights = self.optimization.results['weights']
                 self.models.append(self.optimization.model)
 
-            portfolio = Portfolio(rebalancing_date = rebdate, weights = weights, init_weights = x_init)
-            self.strategy.portfolios.append(portfolio)
-
         return None
+
+    def compute_summary(self, fc: float = 0, vc: float = 0):
+        # Simulation
+        sim_bt = self.strategy.simulate(return_series = self.data['return_series'], fc = fc, vc = vc)
+        turnover = self.strategy.turnover(return_series = self.data['return_series'])
+
+        # Analyze weights
+        weights = self.strategy.get_weights_df()
+
+        # Analyze simulation
+        sim = pd.concat({'sim': sim_bt, 'index': self.data['return_series_index']}, axis = 1).dropna()
+        sim.columns = sim.columns.get_level_values(0)
+        sim = np.log(1 + sim).cumsum()
+
+        return {'number_of_assets' : self.strategy.number_of_assets(),
+                'returns' : sim,
+                'turnover': turnover,
+                'weights' : weights}
