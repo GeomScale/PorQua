@@ -163,6 +163,31 @@ class QuadraticProgram(dict):
 
         return None
 
+    def is_feasible(self) -> bool:
+        problem = qpsolvers.Problem(P = np.zeros(self.get('P').shape),
+                                    q = np.zeros(self.get('P').shape[0]),
+                                    G = self.get('G'),
+                                    h = self.get('h'),
+                                    A = self.get('A'),
+                                    b = self.get('b'),
+                                    lb = self.get('lb'),
+                                    ub = self.get('ub'))
+
+        # Convert to sparse matrices for best performance
+        if self.solver in SPARSE_SOLVERS:
+            if self['params'].get('sparse'):
+                if problem.P is not None:
+                    problem.P = scipy.sparse.csc_matrix(problem.P)
+                if problem.A is not None:
+                    problem.A = scipy.sparse.csc_matrix(problem.A)
+                if problem.G is not None:
+                    problem.G = scipy.sparse.csc_matrix(problem.G)
+        solution = qpsolvers.solve_problem(problem = problem,
+                                           solver = self.solver,
+                                           initvals = self.get('x0'),
+                                           verbose = False)
+        return solution.found
+
     def solve(self) -> None:
         if self.solver in ['ecos', 'scs', 'clarabel']:
             if self.get('b').size == 1 :
