@@ -56,20 +56,6 @@ class Optimization(ABC):
 
     @abstractmethod
     def solve(self) -> bool:
-
-        # Ensure that P and q are numpy arrays
-        if 'P' in self.objective.keys():
-            P = to_numpy(self.objective['P'])
-        else:
-            raise ValueError("Missing matrix 'P' in objective.")
-        if 'q' in self.objective.keys():
-            q = to_numpy(self.objective['q'])
-        else:
-            q = np.zeros(len(self.constraints.selection))
-
-        self.objective['P'] = P
-        self.objective['q'] = q
-
         self.solve_qpsolvers()
         return self.results['status']
 
@@ -88,6 +74,19 @@ class Optimization(ABC):
         return None
 
     def model_qpsolvers(self) -> None:
+        # Ensure that P and q are numpy arrays
+        if 'P' in self.objective.keys():
+            P = to_numpy(self.objective['P'])
+        else:
+            raise ValueError("Missing matrix 'P' in objective.")
+        if 'q' in self.objective.keys():
+            q = to_numpy(self.objective['q'])
+        else:
+            q = np.zeros(len(self.constraints.selection))
+
+        self.objective['P'] = P
+        self.objective['q'] = q
+
         universe = self.constraints.selection
 
         GhAb = self.constraints.to_GhAb()
@@ -114,6 +113,7 @@ class Optimization(ABC):
         # Transaction cost in the objective
         transaction_cost = self.params.get('transaction_cost')
         if transaction_cost is not None and x_init is not None:
+            print(f'transaction_cost = {transaction_cost}')
             self.model.linearize_turnover_objective(pd.Series(x_init), transaction_cost)
 
         # Turnover constraint
@@ -135,8 +135,6 @@ class LeastSquares(Optimization):
                  *arg, **kwarg):
         self.covariance = covariance
         super().__init__(*arg, **kwarg)
-        if self.params.get('l2_penalty') is None:
-            self.params['l2_penalty'] = 0
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
 
