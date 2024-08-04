@@ -12,6 +12,7 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 import pickle
+import matplotlib.pyplot as plt
 
 def nearestPD(A):
     """Find the nearest positive-definite matrix to input
@@ -68,3 +69,31 @@ def serialize_solution(name_suffix, solution, runtime):
 
 def to_numpy(data):
     return None if data is None else data.to_numpy() if hasattr(data, 'to_numpy') else data
+
+#------------------- Machine learning helpers -------------------
+
+def calculate_rmse(y_true, y_pred):
+    """
+    Calculate the Root Mean Squared Error (RMSE)
+    """
+    rmse = np.sqrt(np.mean((np.array(y_true) - np.array(y_pred.values)) ** 2))
+    return rmse
+
+
+def calculate_mape(y_true, y_pred):
+    """
+    Calculate the Mean Absolute Percentage Error (MAPE) %
+    """
+    y_pred, y_true = np.array(y_pred), np.array(y_true)
+    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    return mape
+
+def show_result(predictions, y_test, y_actual, method = None):
+    print(f'RMSE of linear regression: {calculate_rmse(y_test, predictions)}')
+    print(f'MAPE of linear regression: {calculate_mape(y_test, predictions)}')
+
+    plt.plot(y_actual, color = 'cyan')
+    plt.plot(predictions, color = 'green')
+    plt.legend(["True values", "Prediction"])
+    plt.title(method)
+    plt.show()

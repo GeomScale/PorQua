@@ -7,9 +7,9 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-
+import numpy as np
 import pandas as pd
-
+from typing import List
 
 
 class OptimizationData(dict):
@@ -42,3 +42,12 @@ class OptimizationData(dict):
         for key in variable_names:
             self[key] = self[key].loc[index]
         return None
+
+    def view(self, universe: List, mode: str):
+        X_raw = self['X'][universe]
+        y_raw = self['y']
+
+        if mode == 'log':
+            return np.log(1 + X_raw), np.log(1 + y_raw)
+        else:
+            return X_raw, y_raw

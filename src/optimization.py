@@ -137,9 +137,7 @@ class LeastSquares(Optimization):
         super().__init__(*arg, **kwarg)
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-
-        X = np.log(1 + optimization_data['X'])
-        y = np.log(1 + optimization_data['y'])
+        X, y = optimization_data.view(self.constraints.selection, mode = 'log')
 
         # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
@@ -162,8 +160,7 @@ class WeightedLeastSquares(Optimization):
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
 
-        X = np.log(1 + optimization_data['X'])
-        y = np.log(1 + optimization_data['y'])
+        X, y = optimization_data.view(self.constraints.selection, mode='log')
 
         tau = self.params['tau']
         lambda_val = np.exp(-np.log(2) / tau)
