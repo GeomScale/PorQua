@@ -17,33 +17,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from optimization_data import OptimizationData
-
-def train_test_split(X, y, query = None, test_size = 0.2) :
-    nb_test = int(test_size * len(X))
-    test_index = X.index[-nb_test:]
-    train_index = X.index[:X.shape[0] - nb_test]
-
-    X_test  = X.loc[test_index]
-    X_train = X.loc[train_index]
-
-    y_test  = y.loc[test_index]
-    y_train = y.loc[train_index]
-
-    if not(query is None):
-        query_test = query.loc[test_index]
-        query_train = query.loc[train_index]
-    else:
-        query_test = None
-        query_train = None
-    # return {'X_train': X_train, 'X_test': X_test, 'y_train': y_train, 'y_test': y_test, 'query_train': query_train ,'query_test':query_test}
-    return X_train, X_test, y_train, y_test, query_train, query_test
+import onnx
+from abc import ABC, abstractmethod
+import tensorflow as tf
 
 #### Calculate the metrics RMSE and MAPE ####
 def calculate_rmse(y_true, y_pred):
     """
     Calculate the Root Mean Squared Error (RMSE)
     """
-    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+    rmse = np.sqrt(np.mean((np.array(y_true) - np.array(y_pred.values)) ** 2))
     return rmse
 
 
@@ -64,6 +47,61 @@ def show_result(predictions, y_test, y_actual, method = None):
     plt.legend(["True values", "Prediction"])
     plt.title(method)
     plt.show()
+class Universe_selection(ABC):
+    def __init__(self,
+                 model: str,
+                 data: pd.DataFrame):
+        self.model = model
+        self.data = data
+
+    @abstractmethod
+    # def build_model(self):
+    #     self.trained_model = None
+    #     return None
+
+    def load_model(self, model_path: str = None):
+        self.trained_model = onnx.load(model_path)
+        print(onnx.checker.check_model(self.trained_model))
+
+    def select_universe(self, X, nb_stocks = 20):
+        self.trained_model.predict(X)
+        return None
+
+class LSTM_revelance(Universe_selection):
+
+    def load_model(self, model_path: str = "../model/lstm_msci_00.keras"):
+        self.trained_model = tf.keras.models.load_model(model_path)
+        # Show the model architecture
+        self.trained_model .summary()
+
+    def select_universe(self, X, nb_stocks = 20):
+        result_loaded_model = self.trained_model(X)
+        indx_top = result_loaded_model[-1].numpy().argsort()[:nb_stocks]
+        return self.data.columns[indx_top] # Name/code of stocks
+
+def train_test_split(X, y = None, queryonnx_model_path = None, test_size = 0.2) :
+    nb_test = int(test_size * len(X))
+    test_index = X.index[-nb_test:]
+    train_index = X.index[:X.shape[0] - nb_test]
+
+    X_test  = X.loc[test_index]
+    X_train = X.loc[train_index]
+
+    if not(y is None):
+        y_test  = y.loc[test_index]
+        y_train = y.loc[train_index]
+    else:
+        y_test, y_train = None, None
+
+    if not(query is None):
+        query_test = query.loc[test_index]
+        query_train = query.loc[train_index]
+    else:
+        query_test = None
+        query_train = None
+    return X_train, X_test, y_train, y_test, query_train, query_test
+
+
 
 
 if __name__ == '__main__':
