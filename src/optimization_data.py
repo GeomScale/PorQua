@@ -9,6 +9,7 @@
 
 import numpy as np
 import pandas as pd
+from helper_functions import to_numpy
 from typing import List
 
 
@@ -44,8 +45,8 @@ class OptimizationData(dict):
         return None
 
     def view(self, universe: List, mode: str):
-        X_raw = self['X'][universe]
-        y_raw = self['y']
+        X_raw = to_numpy(self['X'][universe])
+        y_raw = to_numpy(self['y'])
 
         if mode == 'log':
             return np.log(1 + X_raw), np.log(1 + y_raw)

@@ -14,14 +14,16 @@ from optimization import *
 from constraints import Constraints
 from optimization_data import OptimizationData
 from portfolio import Portfolio, Strategy
+from universe_selection import UniverseSelection
 from typing import Callable, Dict, List
 
 
 class Backtest:
 
-    def __init__(self, rebdates: List[str], **kwargs):
+    def __init__(self, rebdates: List[str], selection_model: UniverseSelection = None, **kwargs):
         self.rebdates = rebdates
         self.data = {}
+        self.selection_model = selection_model
         self.strategy: Strategy = Strategy([])
         self.optimization: Optimization = None
         self.optimization_data: OptimizationData = OptimizationData(align = False)
@@ -38,8 +40,8 @@ class Backtest:
         y = self.data['return_series_index']
         if width is None:
             width = np.min(X.shape[0] - 1, y.shape[0] - 1)
-        self.optimization_data['X'] = to_numpy(X[X.index <= rebdate].tail(width+1))
-        self.optimization_data['y'] = to_numpy(y[y.index <= rebdate].tail(width+1))
+        self.optimization_data['X'] = X[X.index <= rebdate].tail(width+1)
+        self.optimization_data['y'] = y[y.index <= rebdate].tail(width+1)
 
         return None
 
@@ -62,6 +64,11 @@ class Backtest:
                                                 rescale = False)
 
             self.optimization.params['x0'] = x_init
+
+            # select universe
+            if self.selection_model is not None:
+                universe = self.selection_model.select_universe()
+                self.optimization.constraints.selection = universe
 
             ## Set objective
             self.optimization.set_objective(optimization_data = self.optimization_data)
