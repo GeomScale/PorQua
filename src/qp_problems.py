@@ -61,7 +61,7 @@ class QuadraticProgram(dict):
         G[(m+n):(m+2*n), n:(2*n)] = np.eye(n) * (-1)
         G[(m+2*n), ] = np.append(np.zeros(n), np.ones(n))
         h = self.get('h') if self.get('h') is not None else np.empty(shape=(0,))
-        h = np.append(h, np.append(np.append(x_init, x_init * (-1)), to_budget))
+        h = np.append(h, np.append(np.append(x_init, -x_init), to_budget))
 
         # Equality constraints
         #A = concat_constant_columns(self.get('A'), n)
@@ -106,7 +106,7 @@ class QuadraticProgram(dict):
         A[0:mA, 0:n] = self.get('A')
         A[mA:(mA+N), 0:N] = np.eye(N)
         A[mA:(mA+N), n:(n+N)] = np.eye(N)
-        A[mA:(mA+N), (n+N):(n+2*N)] = np.eye(N) * (-1)
+        A[mA:(mA+N), (n+N):(n+2*N)] = -np.eye(N)
         b = np.pad(self.get('b'), (0, N))
 
         lb = np.pad(self['lb'], (0, 2*N)) if self.get('lb') is not None else None
@@ -140,11 +140,11 @@ class QuadraticProgram(dict):
         if self.get('G') is not None:
             G[0:m, 0:n] = self.get('G')
         G[m:(m+n), 0:n] = np.eye(n)
-        G[m:(m+n), n:(2*n)] = np.eye(n) * (-1)
-        G[(m+n):(m+2*n), 0:n] = np.eye(n) * (-1)
-        G[(m+n):(m+2*n), n:(2*n)] = np.eye(n) * (-1)
+        G[m:(m+n), n:(2*n)] = -np.eye(n)
+        G[(m+n):(m+2*n), 0:n] = -np.eye(n)
+        G[(m+n):(m+2*n), n:(2*n)] = -np.eye(n)
         h = self.get('h') if self.get('h') is not None else np.empty(shape=(0,))
-        h = np.append(h, np.append(x_init, x_init * (-1)))
+        h = np.append(h, np.append(x_init, -x_init))
 
         # Equality constraints
         A = np.pad(self['A'], [(0,0), (0,n)]) if self.get('A') is not None else None
