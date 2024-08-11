@@ -21,6 +21,7 @@ import helper_functions
 def match_arg(x, lst):
     return [el for el in lst if x in el][0]
 
+
 def box_constraint(box_type = "LongOnly",
                    lower = None,
                    upper = None) -> dict:
@@ -68,7 +69,6 @@ def linear_constraint(Amat = None,
 
 # --------------------------------------------------------------------------
 # Constraints class:
-#   * adding constraints must be kept in the abstract sense, and only to be converted to real constraints in to_GhAb
 #       *
 #       *
 #       *
@@ -82,7 +82,7 @@ class Constraints:
         if not all(isinstance(item, str) for item in selection):
             raise ValueError("argument 'selection' has to be a character vector.")
         self.selection = selection
-        self.budget = {'sense': None, 'rhs': None}
+        self.budget = {'Amat': None, 'sense': None, 'rhs': None}
         self.box = {'box_type': 'NA', 'lower': None, 'upper': None}
         self.linear = {'Amat': None, 'sense': None, 'rhs': None}
         self.l1 = {}
@@ -94,7 +94,10 @@ class Constraints:
     def add_budget(self, rhs = 1, sense = '=') -> None:
         if self.budget.get('rhs') is not None:
             print("Existing budget constraint is overwritten\n")
-        self.budget = {'sense': sense, 'rhs': rhs}
+        a_values = pd.Series([1] * len(self.selection), index = self.selection)
+        self.budget = {'Amat': a_values,
+                        'sense': sense,
+                        'rhs': rhs}
         return None
 
     def add_box(self,
@@ -102,6 +105,15 @@ class Constraints:
                 lower = None,
                 upper = None) -> None:
         boxcon = box_constraint(box_type, lower, upper)
+
+        if np.isscalar(boxcon['lower']):
+            boxcon['lower'] = pd.Series(np.repeat(float(boxcon['lower']), len(self.selection)), index=self.selection)
+        if np.isscalar(boxcon['upper']):
+            boxcon['upper'] = pd.Series(np.repeat(float(boxcon['upper']), len(self.selection)), index=self.selection)
+
+        if (boxcon['upper'] < boxcon['lower']).any():
+            raise ValueError("Some lower bounds are higher than the corresponding upper bounds.")
+
         self.box = boxcon
         return None
 
@@ -159,37 +171,21 @@ class Constraints:
         b = None
         G = None
         h = None
-
-        universe = self.selection
-        universe_size = len(universe)
-
-        if self.budget['rhs'] is not None:
-            budget_coeff = np.ones(universe_size)
+        if self.budget['Amat'] is not None:
             if self.budget['sense'] == '=':
-                A = np.array(budget_coeff, dtype = float)
+                A = np.array(self.budget['Amat'], dtype = float)
                 b = np.array(self.budget['rhs'], dtype = float)
             else:
-                G = np.array(budget_coeff, dtype = float)
+                G = np.array(self.budget['Amat'], dtype = float)
                 h = np.array(self.budget['rhs'], dtype = float)
 
-        boxcon = self.box
-        if boxcon is not None:
-            if np.isscalar(boxcon['upper']):
-                self.box['lower'] = pd.Series(np.repeat(float(boxcon['lower']), universe_size), index=universe)
-            if np.isscalar(boxcon['upper']):
-                boxcon['upper'] = pd.Series(np.repeat(float(boxcon['upper']), universe_size), index=universe)
-            if (boxcon['upper'] < boxcon['lower']).any():
-                raise ValueError("Some lower bounds are higher than the corresponding upper bounds.")
-
-
         if lbub_to_G:
-            I = np.eye(universe_size)
+            I = np.diag(np.ones(len(self.selection)))
             G_tmp = np.concatenate((-I, I), axis = 0)
             h_tmp = np.concatenate((-self.box["lower"], self.box["upper"]), axis = 0)
             G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
             h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
-        # TODO: add check if reset universe then discard linear
         if self.linear['Amat'] is not None:
             Amat = self.linear['Amat'].copy()
             rhs = self.linear['rhs'].copy()
@@ -205,8 +201,8 @@ class Constraints:
             if idx_eq.sum() > 0:
                 A_tmp = Amat[idx_eq].to_numpy()
                 b_tmp = rhs[idx_eq].to_numpy()
-                A = np.vstack((A, A_tmp)) if A is not None else A_tmp
-                b = np.concatenate((b, b_tmp), axis = None) if b is not None else b_tmp
+                A = np.vstack((A, A_tmp)) if (A is not None) else A_tmp
+                b = np.concatenate((b, b_tmp), axis = None) if (b is not None) else b_tmp
                 if idx_eq.sum() < Amat.shape[0]:
                     G_tmp = Amat[idx_eq == False].to_numpy()
                     h_tmp = rhs[idx_eq == False].to_numpy()
@@ -215,8 +211,8 @@ class Constraints:
                 h_tmp = rhs.to_numpy()
 
             if 'G_tmp' in locals():
-                G = np.vstack((G, G_tmp)) if G is not None else G_tmp
-                h = np.concatenate((h, h_tmp), axis = None) if h is not None else h_tmp
+                G = np.vstack((G, G_tmp)) if (G is not None) else G_tmp
+                h = np.concatenate((h, h_tmp), axis = None) if (h is not None) else h_tmp
 
         # To ensure A and G are matrices (even with only 1 row)
         A = A.reshape(-1, A.shape[-1]) if A is not None else None
