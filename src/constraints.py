@@ -75,9 +75,9 @@ def linear_constraint(Amat=None,
 class Constraints:
 
     def __init__(self, selection="NA") -> None:
-
         if not all(isinstance(item, str) for item in selection):
             raise ValueError("argument 'selection' has to be a character vector.")
+
         self.selection = selection
         self.budget = {'Amat': None, 'sense': None, 'rhs': None}
         self.box = {'box_type': 'NA', 'lower': None, 'upper': None}
@@ -91,7 +91,7 @@ class Constraints:
     def add_budget(self, rhs=1, sense='=') -> None:
         if self.budget.get('rhs') is not None:
             print("Existing budget constraint is overwritten\n")
-        a_values = pd.Series([1] * len(self.selection), index=self.selection)
+        a_values = pd.Series(np.ones(len(self.selection)), index=self.selection)
         self.budget = {'Amat': a_values,
                        'sense': sense,
                        'rhs': rhs}

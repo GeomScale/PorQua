@@ -6,9 +6,11 @@
 
 # Licensed under GNU LGPL.3, see LICENCE file
 
-import pandas as pd
 from abc import ABC, abstractmethod
+from random import sample
+import pandas as pd
 import tensorflow as tf
+
 
 class UniverseSelection(ABC):
     def __init__(self,
@@ -22,12 +24,13 @@ class UniverseSelection(ABC):
         return None
 
     @abstractmethod
-    def select_universe(self, X, nb_stocks = 20):
+    def select(self, stock_returns, nb_stocks=20):
         return None
 
     @abstractmethod
     def load_model(self, model_path: str = None):
         return None
+
 
 class LSTMRevelance(UniverseSelection):
 
@@ -36,22 +39,23 @@ class LSTMRevelance(UniverseSelection):
         # Show the model architecture
         self.trained_model.summary()
 
-    def select_universe(self, X, nb_stocks = 20):
-        result_loaded_model = self.trained_model(X)
+    def select(self, stock_returns, nb_stocks=20):
+        result_loaded_model = self.trained_model(stock_returns)
         indx_top = result_loaded_model[-1].numpy().argsort()[:nb_stocks]
-        return self.data.columns[indx_top] # Name/code of stocks
+        return self.data.columns[indx_top]  # Name/code of stocks
+
 
 #------------------- Helpers -------------------
-def train_test_split(X, y = None, queryonnx_model_path = None, test_size = 0.2) :
+def train_test_split(X, y=None, queryonnx_model_path=None, test_size=0.2):
     nb_test = int(test_size * len(X))
     test_index = X.index[-nb_test:]
     train_index = X.index[:X.shape[0] - nb_test]
 
-    X_test  = X.loc[test_index]
+    X_test = X.loc[test_index]
     X_train = X.loc[train_index]
 
-    if not(y is None):
-        y_test  = y.loc[test_index]
+    if y is not None:
+        y_test = y.loc[test_index]
         y_train = y.loc[train_index]
     else:
         y_test, y_train = None, None

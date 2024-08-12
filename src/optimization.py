@@ -7,7 +7,6 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -42,6 +41,7 @@ class Objective(dict):
     def __init__(self, *args, **kwargs):
         super(Objective, self).__init__(*args, **kwargs)
 
+
 class Optimization(ABC):
 
     def __init__(self,
@@ -66,7 +66,7 @@ class Optimization(ABC):
         solution = self.model['solution']
         status = solution.found
         weights = pd.Series(solution.x[:len(universe)] if status else [None] * len(universe),
-                                index = universe)
+                            index=universe)
 
         self.results = {'weights': weights.to_dict(),
                         'status': self.model['solution'].found}
@@ -89,21 +89,23 @@ class Optimization(ABC):
 
         universe = self.constraints.selection
 
-        GhAb = self.constraints.to_GhAb()
+        # constraints
+        constraints = self.constraints.build_constraints(universe)
+        GhAb = constraints.to_GhAb()
 
-        lb = self.constraints.box['lower'].to_numpy() if self.constraints.box['box_type'] != 'NA' else None
-        ub = self.constraints.box['upper'].to_numpy() if self.constraints.box['box_type'] != 'NA' else None
+        lb = constraints['lower'].to_numpy() if constraints.box['box_type'] != 'NA' else None
+        ub = constraints.box['upper'].to_numpy() if constraints.box['box_type'] != 'NA' else None
 
-        self.model = qp_problems.QuadraticProgram(P = self.objective['P'],
-                                        q = self.objective['q'],
-                                        constant = self.objective.get('constant'),
-                                        G = GhAb['G'],
-                                        h = GhAb['h'],
-                                        A = GhAb['A'],
-                                        b = GhAb['b'],
-                                        lb = lb,
-                                        ub = ub,
-                                        params = self.params)
+        self.model = qp_problems.QuadraticProgram(P=self.objective['P'],
+                                                  q=self.objective['q'],
+                                                  constant=self.objective.get('constant'),
+                                                  G=GhAb['G'],
+                                                  h=GhAb['h'],
+                                                  A=GhAb['A'],
+                                                  b=GhAb['b'],
+                                                  lb=lb,
+                                                  ub=ub,
+                                                  params=self.params)
 
         # Choose which reference position to be used
         tocon = self.constraints.l1.get('turnover')
@@ -123,9 +125,8 @@ class Optimization(ABC):
         # Leverage constraint
         levcon = self.constraints.l1.get('leverage')
         if levcon is not None:
-            self.model.linearize_leverage_constraint(N = len(universe), leverage_budget = levcon['rhs'])
+            self.model.linearize_leverage_constraint(N=len(universe), leverage_budget=levcon['rhs'])
         return None
-
 
 
 class LeastSquares(Optimization):
@@ -137,7 +138,7 @@ class LeastSquares(Optimization):
         super().__init__(*arg, **kwarg)
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-        X, y = optimization_data.view(self.constraints.selection, mode = 'log')
+        X, y = optimization_data.view(self.constraints.selection, mode='log')
 
         # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
@@ -146,20 +147,18 @@ class LeastSquares(Optimization):
 
         l2_penalty = self.params.get('l2_penalty')
         if l2_penalty is not None and l2_penalty != 0:
-            P = P + 2 * l2_penalty * np.eye(X.shape[1])
+            P += 2 * l2_penalty * np.eye(X.shape[1])
 
-        self.objective = Objective(P = P, q = q, constant = constant)
+        self.objective = Objective(P=P, q=q, constant=constant)
         return None
 
     def solve(self) -> bool:
         return super().solve()
 
 
-
 class WeightedLeastSquares(Optimization):
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-
         X, y = optimization_data.view(self.constraints.selection, mode='log')
 
         tau = self.params['tau']
@@ -173,28 +172,28 @@ class WeightedLeastSquares(Optimization):
         q = -2 * (X.T).to_numpy() @ W @ y
         constant = (y.T).to_numpy() @ W @ y
 
-        self.objective = Objective(P = P, q = q, constant = constant)
+        self.objective = Objective(P=P, q=q, constant=constant)
         return None
 
     def solve(self) -> bool:
         return super().solve()
-
 
 
 class QEQW(Optimization):
 
     def __init__(self, *arg, **kwarg):
-        covariance = Covariance(method = 'duv')
-        super().__init__(covariance = covariance, *arg, **kwarg)
+        covariance = Covariance(method='duv')
+        super().__init__(covariance=covariance, *arg, **kwarg)
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-        covmat = self.covariance.estimate(X = optimization_data['X']) * 2
+        covmat = self.covariance.estimate(X=optimization_data['X']) * 2
         mu = np.zeros(optimization_data['X'].shape[1])
-        self.objective = Objective(P = covmat, q = mu)
+        self.objective = Objective(P=covmat, q=mu)
         return None
 
     def solve(self) -> bool:
         return super().solve()
+
 
 class LAD(Optimization):
     # Least Absolute Deviation (same as mean absolute deviation, MAD)
@@ -217,7 +216,7 @@ class LAD(Optimization):
         #         y = np.log(y)
         X = np.log(1 + optimization_data['X'])
         y = np.log(1 + optimization_data['y'])
-        self.objective = Objective(X = X, y = y)
+        self.objective = Objective(X=X, y=y)
 
         return None
 
@@ -244,23 +243,23 @@ class LAD(Optimization):
         # Add matrix variable for the asset weights
         lb = to_numpy(self.constraints.box['lower'])
         ub = to_numpy(self.constraints.box['upper'])
-        x = self.model.addMVar(N, lb = lb, ub = ub, vtype = gp.GRB.CONTINUOUS, name = 'x')
+        x = self.model.addMVar(N, lb=lb, ub=ub, vtype=gp.GRB.CONTINUOUS, name='x')
 
         # Auxiliary variables to deal with the abs() function
-        aux_lad_pos = self.model.addMVar(T, lb = np.zeros(T), name = 'aux_lad_pos')
-        aux_lad_neg = self.model.addMVar(T, lb = np.zeros(T), name = 'aux_lad_neg')
-        self.model.addConstr(X @ x + aux_lad_pos - aux_lad_neg == y, name = 'aux_lad')
+        aux_lad_pos = self.model.addMVar(T, lb=np.zeros(T), name='aux_lad_pos')
+        aux_lad_neg = self.model.addMVar(T, lb=np.zeros(T), name='aux_lad_neg')
+        self.model.addConstr(X @ x + aux_lad_pos - aux_lad_neg == y, name='aux_lad')
 
         # Objective function
         self.model.setObjective(aux_lad_pos.sum() + aux_lad_neg.sum(), gp.GRB.MINIMIZE)
 
         # Add linear inequality constraints
         if GhAb['G'] is not None:
-            self.model.addConstr(GhAb['G'] @ x <= GhAb['h'], name = 'Gh')
+            self.model.addConstr(GhAb['G'] @ x <= GhAb['h'], name='Gh')
 
         # Add linear equality constraints
         if GhAb['A'] is not None:
-            self.model.addConstr(GhAb['A'] @ x == GhAb['b'], name = 'Ab')
+            self.model.addConstr(GhAb['A'] @ x == GhAb['b'], name='Ab')
 
         # Add quadratic inequality constraints
         quadcon = self.constraints.quadratic
@@ -273,20 +272,21 @@ class LAD(Optimization):
         if 'leverage' in self.constraints.l1.keys():
             levcon = self.constraints.l1['leverage']
             # Auxiliary variables to deal with the abs() function
-            aux_lvrg_pos = self.model.addMVar(N, lb = np.zeros(N), name = 'aux_lvrg_pos')
-            aux_lvrg_neg = self.model.addMVar(N, lb = np.zeros(N), name = 'aux_lvrg_neg')
-            self.model.addConstr(aux_lvrg_pos - aux_lvrg_neg == x, name = 'aux_leverage')
+            aux_lvrg_pos = self.model.addMVar(N, lb=np.zeros(N), name='aux_lvrg_pos')
+            aux_lvrg_neg = self.model.addMVar(N, lb=np.zeros(N), name='aux_lvrg_neg')
+            self.model.addConstr(aux_lvrg_pos - aux_lvrg_neg == x, name='aux_leverage')
             self.model.addConstr(aux_lvrg_pos.sum() + aux_lvrg_neg.sum() <= levcon['rhs'], 'leverage_budget')
 
         # Solve and store results
         self.model.optimize()
-        solved = True if self.model.status == 2 or (self.model.status == 13 and self.params['allow_suboptimal']) else False
+        solved = True if self.model.status == 2 or (
+                    self.model.status == 13 and self.params['allow_suboptimal']) else False
 
         if solved:
-            weights = pd.Series(self.model.x[0:N], index = self.constraints.selection)
+            weights = pd.Series(self.model.x[0:N], index=self.constraints.selection)
             obj_val = self.model.objVal
         else:
-            weights = pd.Series(np.nan, index = self.constraints.selection)
+            weights = pd.Series(np.nan, index=self.constraints.selection)
             obj_val = np.nan
         self.results = {'weights': weights.to_dict(),
                         'objective': obj_val,
@@ -299,7 +299,7 @@ class LAD(Optimization):
         self.model_qpsolvers()
         self.model.solve()
         weights = pd.Series(self.model['solution'].x[0:len(self.constraints.selection)],
-                            index = self.constraints.selection)
+                            index=self.constraints.selection)
         self.results = {'weights': weights.to_dict()}
         return None
 
@@ -312,53 +312,54 @@ class LAD(Optimization):
         T = X.shape[0]
 
         # Inequality constraints
-        G_tilde = np.pad(GhAb['G'], [(0, 0), (0, 2*T)]) if GhAb['G'] is not None else None
+        G_tilde = np.pad(GhAb['G'], [(0, 0), (0, 2 * T)]) if GhAb['G'] is not None else None
         h_tilde = GhAb['h']
 
         # Equality constraints
         A = GhAb['A']
         meq = 0 if A is None else 1 if A.ndim == 1 else A.shape[0]
 
-        A_tilde = np.zeros(shape = (T, N + 2*T)) if A is None else np.pad(A, [(0, T), (0, 2*T)])
-        A_tilde[meq:(T+meq), 0:N] = X
-        A_tilde[meq:(T+meq), N:(N+T)] = np.eye(T)
-        A_tilde[meq:(T+meq), (N+T):] = -np.eye(T)
+        A_tilde = np.zeros(shape=(T, N + 2 * T)) if A is None else np.pad(A, [(0, T), (0, 2 * T)])
+        A_tilde[meq:(T + meq), 0:N] = X
+        A_tilde[meq:(T + meq), N:(N + T)] = np.eye(T)
+        A_tilde[meq:(T + meq), (N + T):] = -np.eye(T)
 
         b_tilde = y if GhAb['b'] is None else np.append(GhAb['b'], y)
 
-        lb = to_numpy(self.constraints.box['lower']) if self.constraints.box['box_type'] != 'NA' else np.full(N, -np.inf)
-        lb = np.pad(lb, (0,2*T))
+        lb = to_numpy(self.constraints.box['lower']) if self.constraints.box['box_type'] != 'NA' else np.full(N,
+                                                                                                              -np.inf)
+        lb = np.pad(lb, (0, 2 * T))
 
         ub = to_numpy(self.constraints.box['upper']) if self.constraints.box['box_type'] != 'NA' else np.full(N, np.inf)
-        ub = np.pad(lb, (0,2*T), constant_values=np.inf)
+        ub = np.pad(lb, (0, 2 * T), constant_values=np.inf)
 
         # Objective function
-        q = np.append(np.zeros(N), np.ones(2*T))
-        P = np.diag(np.zeros(N+2*T))
+        q = np.append(np.zeros(N), np.ones(2 * T))
+        P = np.diag(np.zeros(N + 2 * T))
 
         if 'leverage' in self.constraints.l1.keys():
             lev_budget = self.constraints.l1['leverage']['rhs']
             # Auxiliary variables to deal with the abs() function
-            A_tilde = np.pad(A_tilde, [(0, 0), (0, 2*N)])
-            lev_eq = np.hstack((np.eye(N), np.zeros((N, 2*T)), -np.eye(N), np.eye(N)))
+            A_tilde = np.pad(A_tilde, [(0, 0), (0, 2 * N)])
+            lev_eq = np.hstack((np.eye(N), np.zeros((N, 2 * T)), -np.eye(N), np.eye(N)))
             A_tilde = np.vstack((A_tilde, lev_eq))
             b_tilde = np.append(b_tilde, np.zeros())
 
-            G_tilde = np.pad(G_tilde, [(0,0), (0, 2*N)])
-            lev_ineq = np.append(np.zeros(N+2*T), np.ones(2*N))
+            G_tilde = np.pad(G_tilde, [(0, 0), (0, 2 * N)])
+            lev_ineq = np.append(np.zeros(N + 2 * T), np.ones(2 * N))
             G_tilde = np.vstack((G_tilde, lev_ineq))
             h_tilde = np.append(GhAb['h'], [lev_budget])
 
-            lb = np.pad(lb, (0, 2*N))
-            ub = np.pad(lb, (0, 2*N), constant_values=np.inf)
+            lb = np.pad(lb, (0, 2 * N))
+            ub = np.pad(lb, (0, 2 * N), constant_values=np.inf)
 
-        self.model = qp_problems.QuadraticProgram(P = P,
-                                      q = q,
-                                      G = G_tilde,
-                                      h = h_tilde,
-                                      A = A_tilde,
-                                      b = b_tilde,
-                                      lb = lb,
-                                      ub = ub,
-                                      params = self.params)
+        self.model = qp_problems.QuadraticProgram(P=P,
+                                                  q=q,
+                                                  G=G_tilde,
+                                                  h=h_tilde,
+                                                  A=A_tilde,
+                                                  b=b_tilde,
+                                                  lb=lb,
+                                                  ub=ub,
+                                                  params=self.params)
         return None
