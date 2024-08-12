@@ -55,8 +55,9 @@ class Backtest:
         data = self.prepare_optimization_data(rebdate=rebdate)
 
         # select universe
-        universe = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else self.universe
-        optimization.constraints = self.constraint_provider.build_constraints(universe)
+        universe = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else data['X'].columns.tolist()
+        if self.constraint_provider is not None:
+            optimization.constraints = self.constraint_provider.build_constraints(universe)
 
         optimization.set_objective(optimization_data=data)
         return optimization
@@ -161,6 +162,7 @@ class BacktestConstraintProvider:
 
         boxcon = self.box
         if boxcon is not None:
+            print(boxcon['box_type'])
             constraints.add_box(box_type=boxcon['box_type'], lower=boxcon['lower'], upper=boxcon['upper'])
 
         for l1_con in self.l1.values():

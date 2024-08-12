@@ -13,15 +13,16 @@ import pandas as pd
 import time
 from matplotlib import pyplot as plt
 from optimization import Optimization
-from backtest import Backtest
+from backtest import Backtest, BacktestConstraintProvider
 from typing import List
 
 class BacktestConfig:
-    def __init__(self, name, optimization: Optimization, n_days: int = 21, lookback: int = 252):
+    def __init__(self, name, optimization: Optimization, constraint_provider: BacktestConstraintProvider = None, n_days: int = 21, lookback: int = 252):
         self.name = name
         self.n_days = n_days
         self.lookback = lookback
         self.optimization = optimization
+        self.constraint_provider = constraint_provider
 
 
 class BacktestMutator:
@@ -45,6 +46,7 @@ class BacktestMutator:
             bt = Backtest(rebdates = rebdates, width = config.lookback, **self.settings)
             bt.data = self.data
             bt.optimization = config.optimization
+            bt.constraint_provider = config.constraint_provider
 
             start_time = time.time()
             bt.run()

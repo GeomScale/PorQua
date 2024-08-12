@@ -140,7 +140,7 @@ class Portfolio:
         return self._initial_weights
 
     def turnover(self, portfolio: "Portfolio", return_series: pd.DataFrame, rescale=True):
-        if portfolio.rebalancing_date < self.rebalancing_date:
+        if portfolio.rebalancing_date is not None and portfolio.rebalancing_date < self.rebalancing_date:
             w_init = portfolio.initial_weights(selection=self.weights.keys(),
                                                return_series=return_series,
                                                end_date=self.rebalancing_date,
