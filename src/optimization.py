@@ -90,10 +90,10 @@ class Optimization(ABC):
         universe = self.constraints.selection
 
         # constraints
-        constraints = self.constraints.build_constraints(universe)
+        constraints = self.constraints
         GhAb = constraints.to_GhAb()
 
-        lb = constraints['lower'].to_numpy() if constraints.box['box_type'] != 'NA' else None
+        lb = constraints.box['lower'].to_numpy() if constraints.box['box_type'] != 'NA' else None
         ub = constraints.box['upper'].to_numpy() if constraints.box['box_type'] != 'NA' else None
 
         self.model = qp_problems.QuadraticProgram(P=self.objective['P'],
