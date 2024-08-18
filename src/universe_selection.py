@@ -7,7 +7,7 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 from abc import ABC, abstractmethod
-from random import sample
+import random
 import pandas as pd
 import tensorflow as tf
 
@@ -32,7 +32,7 @@ class UniverseSelection(ABC):
         return None
 
 
-class LSTMRevelance(UniverseSelection):
+class LstmSelection(UniverseSelection):
 
     def load_model(self, model_path: str = "../model/lstm_msci_00.keras"):
         self.trained_model = tf.keras.models.load_model(model_path)
@@ -43,7 +43,16 @@ class LSTMRevelance(UniverseSelection):
         result_loaded_model = self.trained_model(stock_returns)
         indx_top = result_loaded_model[-1].numpy().argsort()[:nb_stocks]
         return self.data.columns[indx_top]  # Name/code of stocks
+    def build_model(self):
+        return None
 
+class DummySelection(UniverseSelection):
+    def select(self, stock_returns, nb_stocks=20):
+        return random.sample(list(stock_returns.columns), nb_stocks)
+    def load_model(self, model_path: str = None):
+        return None
+    def build_model(self):
+        return None
 
 #------------------- Helpers -------------------
 def train_test_split(X, y=None, queryonnx_model_path=None, test_size=0.2):
