@@ -7,27 +7,23 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-import numpy as np
-
 from optimization import *
 from constraints import Constraints
 from optimization_data import OptimizationData
 from portfolio import Portfolio, Strategy
 from universe_selection import UniverseSelection
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 
 class Backtest:
 
-    def __init__(self, rebdates: List[str], universe=None, selection_model: UniverseSelection = None, **kwargs):
+    def __init__(self, rebdates: List[str], data: Dict, universe=None, selection_model: UniverseSelection = None, constraint_provider: 'BacktestConstraintProvider' = None, **kwargs):
         self.rebdates = rebdates
-        self.data = {}
+        self.data = data
+        self.strategy: Strategy = Strategy([])
         self.universe = universe
         self.selection_model = selection_model
-        # if universe is None and selection_model is  None:
-        #     raise ValueError(f'Either universe or selection m')
-        self.strategy: Strategy = Strategy([])
-        self.constraint_provider: BacktestConstraintProvider = BacktestConstraintProvider()
+        self.constraint_provider: BacktestConstraintProvider = constraint_provider
         self.optimization: Optimization = None
         self.models = []  # for debug
         self.settings = {**kwargs}
@@ -39,7 +35,7 @@ class Backtest:
 
         width = self.settings.get('width')
         if width is None:
-            width = np.min(X.shape[0] - 1, y.shape[0] - 1)
+            width = min(X.shape[0] - 1, y.shape[0] - 1)
 
         data = OptimizationData(align=False)
         data['X'] = X[X.index <= rebdate].tail(width + 1)
@@ -55,8 +51,9 @@ class Backtest:
         data = self.prepare_optimization_data(rebdate=rebdate)
 
         # select universe
-        universe = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else data['X'].columns.tolist()
         if self.constraint_provider is not None:
+            universe = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else \
+                        data['X'].columns.tolist()
             optimization.constraints = self.constraint_provider.build_constraints(universe)
 
         optimization.set_objective(optimization_data=data)
@@ -161,8 +158,7 @@ class BacktestConstraintProvider:
         constraints.add_budget(budget['rhs'], budget['sense'])
 
         boxcon = self.box
-        if boxcon is not None:
-            print(boxcon['box_type'])
+        if boxcon is not None and boxcon['box_type'] != 'NA':
             constraints.add_box(box_type=boxcon['box_type'], lower=boxcon['lower'], upper=boxcon['upper'])
 
         for l1_con in self.l1.values():

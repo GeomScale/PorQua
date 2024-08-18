@@ -8,8 +8,6 @@
 
 
 
-import numpy as np
-import pandas as pd
 import time
 from matplotlib import pyplot as plt
 from optimization import Optimization
@@ -24,6 +22,14 @@ class BacktestConfig:
         self.optimization = optimization
         self.constraint_provider = constraint_provider
 
+    def build_backtest(self, data, timeline, **kwargs):
+        rebdates = timeline[::self.n_days].strftime('%Y-%m-%d').tolist()
+        bt = Backtest(rebdates=rebdates, width=self.lookback, **kwargs)
+        bt.data = data
+        bt.optimization = self.optimization
+        bt.constraint_provider = self.constraint_provider
+
+        return bt
 
 class BacktestMutator:
     def __init__(self, data, start_date: str, **kargs):
@@ -39,14 +45,8 @@ class BacktestMutator:
             if not self.settings.get('quiet'):
                 print(f'Running backtest {config.name}: {i}/{len(configs)}...')
 
-            n_days = config.n_days
-            rebdates = self.full_timeline[::n_days].strftime('%Y-%m-%d').tolist()
-
             # Initialize backtest object
-            bt = Backtest(rebdates = rebdates, width = config.lookback, **self.settings)
-            bt.data = self.data
-            bt.optimization = config.optimization
-            bt.constraint_provider = config.constraint_provider
+            bt = config.build_backtest(self.data, self.full_timeline, self.settings)
 
             start_time = time.time()
             bt.run()
@@ -57,6 +57,7 @@ class BacktestMutator:
                                 'backtest' : bt})
         return results
 
+    @staticmethod
     def plot_results(results):
         summaries = [result['backtest'].compute_summary() for result in results]
 

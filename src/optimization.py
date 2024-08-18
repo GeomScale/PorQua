@@ -12,9 +12,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from qpsolvers import solve_qp
 import gurobipy as gp
-import scipy
 
 from helper_functions import to_numpy
 from covariance import Covariance
@@ -134,8 +132,8 @@ class LeastSquares(Optimization):
     def __init__(self,
                  covariance: Optional[Covariance] = None,
                  *arg, **kwarg):
-        self.covariance = covariance
         super().__init__(*arg, **kwarg)
+        self.covariance = covariance
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
         X, y = optimization_data.view(self.constraints.selection, mode='log')
