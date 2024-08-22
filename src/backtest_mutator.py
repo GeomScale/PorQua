@@ -53,8 +53,8 @@ class BacktestMutator:
             elapsed_time = time.time() - start_time
 
             results.append({'config' : config,
-                                'elapsed_time' : elapsed_time,
-                                'backtest' : bt})
+                            'elapsed_time' : elapsed_time,
+                            'backtest' : bt})
         return results
 
     @staticmethod

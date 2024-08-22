@@ -1,15 +1,14 @@
 # GeoFin : a python library for portfolio optimization and index replication
 # GeoFin is part of GeomScale project
-
 # Copyright (c) 2024 Cyril Bachelard
 # Copyright (c) 2024 Minh Ha Ho
 
 # Licensed under GNU LGPL.3, see LICENCE file
 
-
-from typing import Dict
+import warnings
 import pandas as pd
 import numpy as np
+from typing import Dict
 
 
 # --------------------------------------------------------------------------
@@ -90,7 +89,8 @@ class Constraints:
 
     def add_budget(self, rhs=1, sense='=') -> None:
         if self.budget.get('rhs') is not None:
-            print("Existing budget constraint is overwritten\n")
+            warnings.warn("Existing budget constraint is overwritten\n")
+
         a_values = pd.Series(np.ones(len(self.selection)), index=self.selection)
         self.budget = {'Amat': a_values,
                        'sense': sense,

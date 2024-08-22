@@ -52,9 +52,8 @@ class Backtest:
 
         # select universe
         if self.constraint_provider is not None:
-            universe = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else \
-                        data['X'].columns.tolist()
-            optimization.constraints = self.constraint_provider.build_constraints(universe)
+            selected_assets = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else data['X'].columns.tolist()
+            optimization.constraints = self.constraint_provider.build_constraints(selected_assets)
 
         optimization.set_objective(optimization_data=data)
         return optimization

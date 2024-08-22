@@ -28,20 +28,20 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
     path = os.path.join(os.getcwd(), f'data{os.sep}') if path is None else path
     # Load msci country index return series
     df = pd.read_csv(os.path.join(path, 'msci_country_indices.csv'),
-                    sep=';',
-                    index_col=0,
-                    header=0,
-                    parse_dates=True)
+                        sep=';',
+                        index_col=0,
+                        header=0,
+                        parse_dates=True)
     df.index = pd.to_datetime(df.index, format='%d/%m/%Y')
     series_id = df.columns[0:n]
     X = df[series_id]
 
     # Load msci world index return series
     y = pd.read_csv(f'{path}NDDLWI.csv',
-            sep=';',
-            index_col=0,
-            header=0,
-            parse_dates=True)
+                    sep=';',
+                    index_col=0,
+                    header=0,
+                    parse_dates=True)
 
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
 
@@ -63,10 +63,10 @@ def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
 
     # Load S&P 500 index return series
     y = pd.read_csv(f'{path}SPTR.csv',
-            index_col=0,
-            header=0,
-            parse_dates=True,
-            dayfirst=True)
+                    index_col=0,
+                    header=0,
+                    parse_dates=True,
+                    dayfirst=True)
 
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y', dayfirst=True)
 
