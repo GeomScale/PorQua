@@ -200,8 +200,8 @@ class Constraints:
                 A = np.vstack((A, A_tmp)) if A is not None else A_tmp
                 b = np.concatenate((b, b_tmp), axis=None) if b is not None else b_tmp
                 if idx_eq.sum() < Amat.shape[0]:
-                    G_tmp = Amat[not idx_eq].to_numpy()
-                    h_tmp = rhs[not idx_eq].to_numpy()
+                    G_tmp = Amat[idx_eq == False].to_numpy()
+                    h_tmp = rhs[idx_eq == False].to_numpy()
             else:
                 G_tmp = Amat.to_numpy()
                 h_tmp = rhs.to_numpy()
