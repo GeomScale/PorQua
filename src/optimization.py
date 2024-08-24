@@ -201,18 +201,15 @@ class LAD(Optimization):
         self.params['use_log'] = self.params.get('use_log', True)
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-        # X = np.log(1 + training_data['X_train'])
-        # y = np.log(1 + training_data['X_bm'])
-        # X = training_data['X_train']
-        # y = training_data['X_bm'].squeeze()
-        # if self.params.get('use_level'):
-        #     X = (1 + X).cumprod()
-        #     y = (1 + y).cumprod()
-        #     if self.params.get('use_log'):
-        #         X = np.log(X)
-        #         y = np.log(y)
-        X = np.log(1 + optimization_data['X'])
-        y = np.log(1 + optimization_data['y'])
+        X = optimization_data['X']
+        y = optimization_data['y']
+        if self.params.get('use_level'):
+            X = (1 + X).cumprod()
+            y = (1 + y).cumprod()
+            if self.params.get('use_log'):
+                X = np.log(X)
+                y = np.log(y)
+
         self.objective = Objective(X=X, y=y)
 
         return None
@@ -323,12 +320,11 @@ class LAD(Optimization):
 
         b_tilde = y if GhAb['b'] is None else np.append(GhAb['b'], y)
 
-        lb = to_numpy(self.constraints.box['lower']) if self.constraints.box['box_type'] != 'NA' else np.full(N,
-                                                                                                              -np.inf)
+        lb = to_numpy(self.constraints.box['lower']) if self.constraints.box['box_type'] != 'NA' else np.full(N, -np.inf)
         lb = np.pad(lb, (0, 2 * T))
 
         ub = to_numpy(self.constraints.box['upper']) if self.constraints.box['box_type'] != 'NA' else np.full(N, np.inf)
-        ub = np.pad(lb, (0, 2 * T), constant_values=np.inf)
+        ub = np.pad(ub, (0, 2 * T), constant_values=np.inf)
 
         # Objective function
         q = np.append(np.zeros(N), np.ones(2 * T))
