@@ -18,7 +18,7 @@ def nearestPD(A):
     """Find the nearest positive-definite matrix to input
 
     A Python/Numpy port of John D'Errico's `nearestSPD` MATLAB code [1], which
-    credits [2].
+    credits [2]. The code below is written by Cyril.
 
     [1] https://www.mathworks.com/matlabcentral/fileexchange/42885-nearestspd
 
