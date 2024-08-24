@@ -186,7 +186,6 @@ class QuadraticProgram(dict):
         P = self.get('P')
         if P is not None and not isPD(P):
             self['P'] = nearestPD(P)
-
         problem = qpsolvers.Problem(P=self.get('P'),
                                     q=self.get('q'),
                                     G=self.get('G'),
@@ -205,6 +204,7 @@ class QuadraticProgram(dict):
                     problem.A = scipy.sparse.csc_matrix(problem.A)
                 if problem.G is not None:
                     problem.G = scipy.sparse.csc_matrix(problem.G)
+                    
         solution = qpsolvers.solve_problem(problem=problem,
                                            solver=self.solver,
                                            initvals=self.get('x0'),

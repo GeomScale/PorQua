@@ -7,10 +7,6 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-
-# %reload_ext autoreload
-# %autoreload 2
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

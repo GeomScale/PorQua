@@ -14,12 +14,12 @@ import numpy as np
 import pandas as pd
 import gurobipy as gp
 
+
 from helper_functions import to_numpy
 from covariance import Covariance
 from constraints import Constraints
 from optimization_data import OptimizationData
 import qp_problems
-
 
 # https://github.com/qpsolvers/qpsolvers
 
@@ -113,7 +113,6 @@ class Optimization(ABC):
         # Transaction cost in the objective
         transaction_cost = self.params.get('transaction_cost')
         if transaction_cost is not None and x_init is not None:
-            print(f'transaction_cost = {transaction_cost}')
             self.model.linearize_turnover_objective(pd.Series(x_init), transaction_cost)
 
         # Turnover constraint

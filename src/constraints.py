@@ -5,6 +5,7 @@
 
 # Licensed under GNU LGPL.3, see LICENCE file
 
+
 import warnings
 import pandas as pd
 import numpy as np
@@ -17,7 +18,6 @@ from typing import Dict
 
 def match_arg(x, lst):
     return [el for el in lst if x in el][0]
-
 
 def box_constraint(box_type="LongOnly",
                    lower=None,
@@ -46,7 +46,6 @@ def box_constraint(box_type="LongOnly",
             upper = lower * 0 + 1 if upper is None else upper
 
     return {'box_type': box_type, 'lower': lower, 'upper': upper}
-
 
 def linear_constraint(Amat=None,
                       sense="=",
@@ -120,7 +119,6 @@ class Constraints:
                    sense: str = '=',
                    rhs=None,
                    name: str = None) -> None:
-
         if Amat is None:
             if a_values is None:
                 raise ValueError("Either 'Amat' or 'a_values' must be provided.")
@@ -168,6 +166,7 @@ class Constraints:
         b = None
         G = None
         h = None
+
         if self.budget['Amat'] is not None:
             if self.budget['sense'] == '=':
                 A = np.array(self.budget['Amat'], dtype=float)
