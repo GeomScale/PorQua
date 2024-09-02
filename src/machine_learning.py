@@ -7,63 +7,11 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-
-# %reload_ext autoreload
-# %autoreload 2
-
-# Load base and 3rd party packages
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from optimization_data import OptimizationData
-
-def train_test_split(X, y, query = None, test_size = 0.2) :
-    nb_test = int(test_size * len(X))
-    test_index = X.index[-nb_test:]
-    train_index = X.index[:X.shape[0] - nb_test]
-
-    X_test  = X.loc[test_index]
-    X_train = X.loc[train_index]
-
-    y_test  = y.loc[test_index]
-    y_train = y.loc[train_index]
-
-    if not(query is None):
-        query_test = query.loc[test_index]
-        query_train = query.loc[train_index]
-    else:
-        query_test = None
-        query_train = None
-    # return {'X_train': X_train, 'X_test': X_test, 'y_train': y_train, 'y_test': y_test, 'query_train': query_train ,'query_test':query_test}
-    return X_train, X_test, y_train, y_test, query_train, query_test
-
-#### Calculate the metrics RMSE and MAPE ####
-def calculate_rmse(y_true, y_pred):
-    """
-    Calculate the Root Mean Squared Error (RMSE)
-    """
-    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
-    return rmse
-
-
-def calculate_mape(y_true, y_pred):
-    """
-    Calculate the Mean Absolute Percentage Error (MAPE) %
-    """
-    y_pred, y_true = np.array(y_pred), np.array(y_true)
-    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-    return mape
-
-def show_result(predictions, y_test, y_actual, method = None):
-    print(f'RMSE of linear regression: {calculate_rmse(y_test, predictions)}')
-    print(f'MAPE of linear regression: {calculate_mape(y_test, predictions)}')
-
-    plt.plot(y_actual, color = 'cyan')
-    plt.plot(predictions, color = 'green')
-    plt.legend(["True values", "Prediction"])
-    plt.title(method)
-    plt.show()
 
 
 if __name__ == '__main__':
@@ -86,7 +34,6 @@ if __name__ == '__main__':
     X.fillna(0, inplace=True)
 
     training_data = OptimizationData(align = True, lags = {'y': -1}, X = X, y = y_monthly)
-
 
     # Using statsmodels
 

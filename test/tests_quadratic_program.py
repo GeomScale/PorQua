@@ -19,7 +19,8 @@ from typing import Tuple
 import time
 sys.path.insert(1, 'src')
 
-from helper_functions import load_data_msci, to_numpy
+from helper_functions import to_numpy
+from data_loader import load_data_msci
 from constraints import Constraints
 from covariance import Covariance
 from optimization import *

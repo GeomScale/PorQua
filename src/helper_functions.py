@@ -7,73 +7,18 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-
-import os
 from typing import Dict
 import numpy as np
 import pandas as pd
 import pickle
+import matplotlib.pyplot as plt
 
-def load_data(universe):
-    if universe == 'msci':
-        data = load_data_msci()
-    elif universe == 'usa':
-        data = load_data_usa()
-    else:
-        raise ValueError('Universe not recognized.')
-    return data
-
-def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
-
-    path = os.path.join(os.getcwd(), f'data{os.sep}') if path is None else path
-    # Load msci country index return series
-    df = pd.read_csv(os.path.join(path, 'msci_country_indices.csv'),
-                    sep=';',
-                    index_col=0,
-                    header=0,
-                    parse_dates=True)
-    df.index = pd.to_datetime(df.index, format='%d/%m/%Y')
-    series_id = df.columns[0:n]
-    X = df[series_id]
-
-    # Load msci world index return series
-    y = pd.read_csv(f'{path}NDDLWI.csv',
-            sep=';',
-            index_col=0,
-            header=0,
-            parse_dates=True)
-
-    y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
-
-    return {'X': X, 'y': y}
-
-def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
-
-    # Load U.S. security data
-    path = os.path.join(os.getcwd(), f'data{os.sep}') if not path else path
-    df_secd = pd.read_csv(os.path.join(path, 'usa_returns.csv'), index_col = 0, parse_dates=True)
-    df_secd.index = pd.to_datetime(df_secd.index, format='%Y-%m-%d')
-
-    # Load U.S. stock characteristics (fundamentals) data
-    # ...
-    df_funda = None
-
-    # Load S&P 500 index return series
-    y = pd.read_csv(f'{path}SPTR.csv',
-            index_col=0,
-            header=0,
-            parse_dates=True,
-            dayfirst=True)
-
-    y.index = pd.to_datetime(y.index, format='%d/%m/%Y', dayfirst=True)
-
-    return {'X': df_secd, 'df_funda': df_funda, 'y': y}
 
 def nearestPD(A):
     """Find the nearest positive-definite matrix to input
 
     A Python/Numpy port of John D'Errico's `nearestSPD` MATLAB code [1], which
-    credits [2].
+    credits [2]. The code below is written by Cyril.
 
     [1] https://www.mathworks.com/matlabcentral/fileexchange/42885-nearestspd
 
@@ -123,4 +68,32 @@ def serialize_solution(name_suffix, solution, runtime):
         pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def to_numpy(data):
-    return data.to_numpy() if hasattr(data, 'to_numpy') else data
+    return None if data is None else data.to_numpy() if hasattr(data, 'to_numpy') else data
+
+#------------------- Machine learning helpers -------------------
+
+def calculate_rmse(y_true, y_pred):
+    """
+    Calculate the Root Mean Squared Error (RMSE)
+    """
+    rmse = np.sqrt(np.mean((np.array(y_true) - np.array(y_pred.values)) ** 2))
+    return rmse
+
+
+def calculate_mape(y_true, y_pred):
+    """
+    Calculate the Mean Absolute Percentage Error (MAPE) %
+    """
+    y_pred, y_true = np.array(y_pred), np.array(y_true)
+    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    return mape
+
+def show_result(predictions, y_test, y_actual, method = None):
+    print(f'RMSE of linear regression: {calculate_rmse(y_test, predictions)}')
+    print(f'MAPE of linear regression: {calculate_mape(y_test, predictions)}')
+
+    plt.plot(y_actual, color = 'cyan')
+    plt.plot(predictions, color = 'green')
+    plt.legend(["True values", "Prediction"])
+    plt.title(method)
+    plt.show()
