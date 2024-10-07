@@ -34,7 +34,7 @@ class TestQuadraticProgram(unittest.TestCase):
         super().__init__(testname)
         self._universe = universe
         self._solver_name = solver_name
-        self.data = load_data_msci(os.path.join(os.getcwd(), 'test', f'test_data{os.sep}'))
+        self.data = load_data_msci(os.path.join(os.getcwd(), f'data{os.sep}'))
 
     def test_add_constraints(self):
         universe = self.data['X'].columns
