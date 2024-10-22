@@ -9,21 +9,29 @@
 
 
 import os
-from typing import Dict
+from typing import Optional
 import pandas as pd
+import pickle
 
 
-def load_data(universe, path: str = None):
-    if universe == 'msci':
-        data = load_data_msci()
-    elif universe == 'usa':
-        data = load_data_usa()
-    else:
-        raise ValueError('Universe not recognized.')
-    return data
+def load_pickle(filename: str,
+                path: Optional[str] = None) -> Union[Any, None]:
+    if path is not None:
+        filename = os.path.join(path, filename)
+    try:
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+    except EOFError:
+        print("Error: Ran out of input. The file may be empty or corrupted.")
+        return None
+    except Exception as ex:
+        print("Error during unpickling object:", ex)
+    return None
 
-# MSCI daily returns data from 1999-01-01 to 2023-04-18
-def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
+
+def load_data_msci(path: str = None, n: int = 24) -> dict[str, pd.DataFrame]:
+
+    '''Loads MSCI daily returns data from 1999-01-01 to 2023-04-18'''
 
     path = os.path.join(os.getcwd(), f'data{os.sep}') if path is None else path
     # Load msci country index return series
@@ -45,29 +53,5 @@ def load_data_msci(path: str = None, n: int = 24) -> Dict[str, pd.DataFrame]:
 
     y.index = pd.to_datetime(y.index, format='%d/%m/%Y')
 
-    return {'X': X, 'y': y}
+    return {'return_series': X, 'bm_series': y}
 
-# USA daily returns
-# SPTR.csv from 1996-01-20 to 2023-06-06
-# usa_returns.csv from 2005-01-03 to 2024-01-22
-def load_data_usa(path: str = None) -> Dict[str, pd.DataFrame]:
-
-    # Load U.S. security data
-    path = os.path.join(os.getcwd(), f'data{os.sep}') if not path else path
-    df_secd = pd.read_csv(os.path.join(path, 'usa_returns.csv'), index_col = 0, parse_dates=True)
-    df_secd.index = pd.to_datetime(df_secd.index, format='%Y-%m-%d')
-
-    # Load U.S. stock characteristics (fundamentals) data
-    # ...
-    df_funda = None
-
-    # Load S&P 500 index return series
-    y = pd.read_csv(f'{path}SPTR.csv',
-                    index_col=0,
-                    header=0,
-                    parse_dates=True,
-                    dayfirst=True)
-
-    y.index = pd.to_datetime(y.index, format='%d/%m/%Y', dayfirst=True)
-
-    return {'X': df_secd, 'df_funda': df_funda, 'y': y}

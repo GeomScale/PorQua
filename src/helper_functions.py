@@ -7,7 +7,7 @@
 # Licensed under GNU LGPL.3, see LICENCE file
 
 
-from typing import Dict
+from typing import Optional
 import numpy as np
 import pandas as pd
 import pickle
@@ -69,6 +69,50 @@ def serialize_solution(name_suffix, solution, runtime):
 
 def to_numpy(data):
     return None if data is None else data.to_numpy() if hasattr(data, 'to_numpy') else data
+
+
+def append_custom(backtest, rebdate: Optional[str] = None, what: Optional[list] = None) -> None:
+
+    if what is None:
+        what = ['w_dict', 'objective']
+
+    optim = backtest.service.optimization
+
+    for key in what:
+        if key == 'w_dict':
+            w_dict = optim.results['w_dict']
+            for key in w_dict.keys():
+                weights = w_dict[key]                    
+                if hasattr(weights, 'to_dict'):
+                    weights = weights.to_dict()
+                portfolio = Portfolio(rebalancing_date = rebdate, weights = weights)              
+                backtest.append_output(date_key = rebdate,
+                                        output_key = f'weights_{key}',
+                                        value = pd.Series(portfolio.weights))
+        else:
+            if not key in optim.results.keys():
+                continue
+            backtest.append_output(date_key = rebdate,
+                                    output_key = key,
+                                    value = optim.results[key])
+    return None
+
+
+def output_to_strategies(output: dict) -> dict[int, Strategy]:
+
+    N = len(output[list(output.keys())[0]])
+    strategy_dict = {}
+    for i in range(N):
+        strategy_dict[i] = Strategy([])
+        for rebdate in output.keys():
+            weights = output[rebdate][f'weights_{i+1}']
+            if hasattr(weights, 'to_dict'):
+                weights = weights.to_dict()                        
+            portfolio = Portfolio(rebdate, weights)
+            strategy_dict[i].portfolios.append(portfolio)
+
+    return strategy_dict
+
 
 #------------------- Machine learning helpers -------------------
 
