@@ -1,11 +1,13 @@
-# --------------------------------------------------------------------------
-# PorQua : a python library for portfolio optimization and backtesting
-# PorQua is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
-# --------------------------------------------------------------------------
+Licensed under GNU LGPL.3, see LICENCE file
+'''
+
 
 ############################################################################
 ### CLASS Selection

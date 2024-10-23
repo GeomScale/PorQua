@@ -1,17 +1,30 @@
-# GeoFin : a python library for portfolio optimization and index replication
-# GeoFin is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
-# Copyright (c) 2024 Minh Ha Ho
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
+Licensed under GNU LGPL.3, see LICENCE file
+'''
+
+
+############################################################################
+### HELPER FUNCTIONS
+############################################################################
+
 
 
 from typing import Optional
-import numpy as np
 import pandas as pd
+import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+
+from portfolio import Portfolio, Strategy
+from backtest import BacktestService, Backtest
+
+
 
 
 def nearestPD(A):
@@ -71,30 +84,31 @@ def to_numpy(data):
     return None if data is None else data.to_numpy() if hasattr(data, 'to_numpy') else data
 
 
-def append_custom(backtest, rebdate: Optional[str] = None, what: Optional[list] = None) -> None:
+def append_custom(backtest: Backtest,
+                  service: BacktestService,
+                  rebalancing_date: Optional[str] = None,
+                  what: Optional[list] = None) -> None:
 
     if what is None:
         what = ['w_dict', 'objective']
 
-    optim = backtest.service.optimization
-
     for key in what:
         if key == 'w_dict':
-            w_dict = optim.results['w_dict']
+            w_dict = service.optimization.results['w_dict']
             for key in w_dict.keys():
                 weights = w_dict[key]                    
                 if hasattr(weights, 'to_dict'):
                     weights = weights.to_dict()
-                portfolio = Portfolio(rebalancing_date = rebdate, weights = weights)              
-                backtest.append_output(date_key = rebdate,
+                portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
+                backtest.append_output(date_key = rebalancing_date,
                                         output_key = f'weights_{key}',
                                         value = pd.Series(portfolio.weights))
         else:
-            if not key in optim.results.keys():
+            if not key in service.optimization.results.keys():
                 continue
-            backtest.append_output(date_key = rebdate,
+            backtest.append_output(date_key = rebalancing_date,
                                     output_key = key,
-                                    value = optim.results[key])
+                                    value = service.optimization.results[key])
     return None
 
 
@@ -112,6 +126,7 @@ def output_to_strategies(output: dict) -> dict[int, Strategy]:
             strategy_dict[i].portfolios.append(portfolio)
 
     return strategy_dict
+
 
 
 #------------------- Machine learning helpers -------------------
