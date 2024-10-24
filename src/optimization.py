@@ -143,6 +143,8 @@ class Optimization(ABC):
         return None
 
 
+
+
 class EmptyOptimization(Optimization):
 
     def set_objective(self) -> None:
@@ -150,6 +152,47 @@ class EmptyOptimization(Optimization):
 
     def solve(self) -> bool:
         return super().solve()
+
+
+class MeanVariance(Optimization):
+
+    def __init__(self,
+                 covariance: Optional[Covariance] = None,
+                 mean_estimator: Optional[MeanEstimator] = None,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.covariance = Covariance() if covariance is None else covariance
+        self.mean_estimator = MeanEstimator() if mean_estimator is None else MeanEstimator
+        self.params.setdefault('risk_aversion', 1)
+
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+        covmat = self.covariance.estimate(X = optimization_data['return_series'])
+        covmat = covmat * self.params['risk_aversion'] * 2
+        mu = self.mean_estimator.estimate(X = optimization_data['return_series']) * (-1)
+        self.objective = Objective(q = mu, 
+                                   P = covmat)
+        return None
+
+    def solve(self) -> bool: 
+        return super().solve()
+
+
+class QEQW(Optimization):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.covariance = Covariance(method='duv')
+
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+        X = optimization_data['return_series']
+        covmat = self.covariance.estimate(X=X) * 2
+        mu = np.zeros(X.shape[1])
+        self.objective = Objective(P=covmat, q=mu)
+        return None
+
+    def solve(self) -> bool:
+        return super().solve()
+
 
 
 class LeastSquares(Optimization):
@@ -215,22 +258,6 @@ class WeightedLeastSquares(Optimization):
     def solve(self) -> bool:
         return super().solve()
 
-
-class QEQW(Optimization):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.covariance = Covariance(method='duv')
-
-    def set_objective(self, optimization_data: OptimizationData) -> None:
-        X = optimization_data['return_series']
-        covmat = self.covariance.estimate(X=X) * 2
-        mu = np.zeros(X.shape[1])
-        self.objective = Objective(P=covmat, q=mu)
-        return None
-
-    def solve(self) -> bool:
-        return super().solve()
 
 
 class LAD(Optimization):
