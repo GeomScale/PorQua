@@ -1,53 +1,20 @@
-# GeoFin : a python library for portfolio optimization and index replication
-# GeoFin is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
-# Copyright (c) 2024 Minh Ha Ho
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
+Licensed under GNU LGPL.3, see LICENCE file
+'''
+
 
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List
 
 
-# --------------------------------------------------------------------------
-def floating_weights(X, w, start_date, end_date, rescale=True):
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-    if start_date < X.index[0]:
-        raise ValueError('start_date must be contained in dataset')
-    if end_date > X.index[-1]:
-        raise ValueError('end_date must be contained in dataset')
 
-    w = pd.Series(w, index=w.keys())
-    if w.isna().any():
-        raise ValueError('weights (w) contain NaN which is not allowed.')
-    else:
-        w = w.to_frame().T
-    xnames = X.columns
-    wnames = w.columns
-
-    if not all(wnames.isin(xnames)):
-        raise ValueError('Not all assets in w are contained in X.')
-
-    X_tmp = X.loc[start_date:end_date, wnames].copy().fillna(0)
-    # TODO : To extend to short positions cases when the weights can be negative
-    # short_positions = wnames[w.iloc[0,:] < 0 ]
-    # if len(short_positions) > 0:
-    #     X_tmp[short_positions] = X_tmp[short_positions] * (-1)
-    xmat = 1 + X_tmp
-    # xmat.iloc[0] = w.dropna(how='all').fillna(0).abs()
-    xmat.iloc[0] = w.dropna(how='all').fillna(0)
-    w_float = xmat.cumprod()
-
-    if rescale:
-        w_float_long = w_float.where(w_float >= 0).div(w_float[w_float >= 0].abs().sum(axis=1), axis='index').fillna(0)
-        w_float_short = w_float.where(w_float < 0).div(w_float[w_float < 0].abs().sum(axis=1), axis='index').fillna(0)
-        w_float = pd.DataFrame(w_float_long + w_float_short, index=xmat.index, columns=wnames)
-
-    return w_float
 
 
 class Portfolio:
@@ -119,10 +86,10 @@ class Portfolio:
             return None
 
     def initial_weights(self,
-                        selection: List[str],
+                        selection: list[str],
                         return_series: pd.DataFrame,
                         end_date: str,
-                        rescale: bool = True) -> Dict[str, float]:
+                        rescale: bool = True) -> dict[str, float]:
 
         if not hasattr(self, '_initial_weights'):
             if self.rebalancing_date is not None and self.weights is not None:
@@ -156,7 +123,7 @@ class Portfolio:
 
 class Strategy:
 
-    def __init__(self, portfolios: List[Portfolio]):
+    def __init__(self, portfolios: list[Portfolio]):
         self.portfolios = portfolios
 
     @property
@@ -164,7 +131,7 @@ class Strategy:
         return self._portfolios
 
     @portfolios.setter
-    def portfolios(self, new_portfolios: List[Portfolio]):
+    def portfolios(self, new_portfolios: list[Portfolio]):
         if not isinstance(new_portfolios, list):
             raise TypeError('portfolios must be a list')
         if not all(isinstance(portfolio, Portfolio) for portfolio in new_portfolios):
@@ -178,7 +145,7 @@ class Strategy:
     def get_rebalancing_dates(self):
         return [portfolio.rebalancing_date for portfolio in self.portfolios]
 
-    def get_weights(self, rebalancing_date: str) -> Dict[str, float]:
+    def get_weights(self, rebalancing_date: str) -> dict[str, float]:
         for portfolio in self.portfolios:
             if portfolio.rebalancing_date == rebalancing_date:
                 return portfolio.weights
@@ -276,3 +243,46 @@ class Strategy:
             portf_ret[1:] -= fixcost
 
         return portf_ret
+
+
+
+
+# --------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------
+
+def floating_weights(X, w, start_date, end_date, rescale=True):
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+    if start_date < X.index[0]:
+        raise ValueError('start_date must be contained in dataset')
+    if end_date > X.index[-1]:
+        raise ValueError('end_date must be contained in dataset')
+
+    w = pd.Series(w, index=w.keys())
+    if w.isna().any():
+        raise ValueError('weights (w) contain NaN which is not allowed.')
+    else:
+        w = w.to_frame().T
+    xnames = X.columns
+    wnames = w.columns
+
+    if not all(wnames.isin(xnames)):
+        raise ValueError('Not all assets in w are contained in X.')
+
+    X_tmp = X.loc[start_date:end_date, wnames].copy().fillna(0)
+    # TODO : To extend to short positions cases when the weights can be negative
+    # short_positions = wnames[w.iloc[0,:] < 0 ]
+    # if len(short_positions) > 0:
+    #     X_tmp[short_positions] = X_tmp[short_positions] * (-1)
+    xmat = 1 + X_tmp
+    # xmat.iloc[0] = w.dropna(how='all').fillna(0).abs()
+    xmat.iloc[0] = w.dropna(how='all').fillna(0)
+    w_float = xmat.cumprod()
+
+    if rescale:
+        w_float_long = w_float.where(w_float >= 0).div(w_float[w_float >= 0].abs().sum(axis=1), axis='index').fillna(0)
+        w_float_short = w_float.where(w_float < 0).div(w_float[w_float < 0].abs().sum(axis=1), axis='index').fillna(0)
+        w_float = pd.DataFrame(w_float_long + w_float_short, index=xmat.index, columns=wnames)
+
+    return w_float

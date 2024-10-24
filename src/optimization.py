@@ -1,10 +1,18 @@
-# GeoFin : a python library for portfolio optimization and index replication
-# GeoFin is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
-# Copyright (c) 2024 Minh Ha Ho
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
+Licensed under GNU LGPL.3, see LICENCE file
+'''
+
+
+############################################################################
+### OPTIMIZATION
+############################################################################
+
 
 
 from abc import ABC, abstractmethod
@@ -12,11 +20,11 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import gurobipy as gp
 
 
 from helper_functions import to_numpy
 from covariance import Covariance
+from mean_estimation import MeanEstimator
 from constraints import Constraints
 from optimization_data import OptimizationData
 import qp_problems
@@ -24,10 +32,15 @@ import qp_problems
 # https://github.com/qpsolvers/qpsolvers
 
 
+
+
+
+
+
 class OptimizationParameter(dict):
 
-    def __init__(self, *args, **kwargs):
-        super(OptimizationParameter, self).__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super(OptimizationParameter, self).__init__(**kwargs)
         self.__dict__ = self
         if not self.get('solver_name'): self['solver_name'] = 'cvxopt'
         if not self.get('verbose'): self['verbose'] = True
@@ -45,12 +58,16 @@ class Optimization(ABC):
     def __init__(self,
                  params: OptimizationParameter = None,
                  constraints: Constraints = None,
-                 *args, **kwargs):
-        self.params = OptimizationParameter(*args, **kwargs) if params is None else params
+                 **kwargs):
+        self.params = OptimizationParameter(**kwargs) if params is None else params
         self.objective = Objective()
         self.constraints = Constraints() if constraints is None else constraints
         self.model = None
         self.results = None
+
+    @abstractmethod
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+        raise NotImplementedError("Method 'set_objective' must be implemented in derived class.")
 
     @abstractmethod
     def solve(self) -> bool:
@@ -126,16 +143,73 @@ class Optimization(ABC):
         return None
 
 
+
+
+class EmptyOptimization(Optimization):
+
+    def set_objective(self) -> None:
+        pass
+
+    def solve(self) -> bool:
+        return super().solve()
+
+
+class MeanVariance(Optimization):
+
+    def __init__(self,
+                 covariance: Optional[Covariance] = None,
+                 mean_estimator: Optional[MeanEstimator] = None,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.covariance = Covariance() if covariance is None else covariance
+        self.mean_estimator = MeanEstimator() if mean_estimator is None else MeanEstimator
+        self.params.setdefault('risk_aversion', 1)
+
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+        covmat = self.covariance.estimate(X = optimization_data['return_series'])
+        covmat = covmat * self.params['risk_aversion'] * 2
+        mu = self.mean_estimator.estimate(X = optimization_data['return_series']) * (-1)
+        self.objective = Objective(q = mu, 
+                                   P = covmat)
+        return None
+
+    def solve(self) -> bool: 
+        return super().solve()
+
+
+class QEQW(Optimization):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.covariance = Covariance(method='duv')
+
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+        X = optimization_data['return_series']
+        covmat = self.covariance.estimate(X=X) * 2
+        mu = np.zeros(X.shape[1])
+        self.objective = Objective(P=covmat, q=mu)
+        return None
+
+    def solve(self) -> bool:
+        return super().solve()
+
+
+
 class LeastSquares(Optimization):
 
     def __init__(self,
                  covariance: Optional[Covariance] = None,
-                 *arg, **kwarg):
-        super().__init__(*arg, **kwarg)
+                 **kwargs):
+        super().__init__(**kwargs)
         self.covariance = covariance
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-        X, y = optimization_data.view(self.constraints.selection, mode='log')
+
+        X = optimization_data['return_series']
+        y = optimization_data['bm_series']
+        if self.params.get('log_transform'):
+            X = np.log(1 + X)
+            y = np.log(1 + y)
 
         # 0.5 * w * P * w' - q * w' + constant
         P = 2 * (X.T @ X)
@@ -146,7 +220,9 @@ class LeastSquares(Optimization):
         if l2_penalty is not None and l2_penalty != 0:
             P += 2 * l2_penalty * np.eye(X.shape[1])
 
-        self.objective = Objective(P=P, q=q, constant=constant)
+        self.objective = Objective(P=P,
+                                   q=q,
+                                   constant=constant)
         return None
 
     def solve(self) -> bool:
@@ -156,7 +232,12 @@ class LeastSquares(Optimization):
 class WeightedLeastSquares(Optimization):
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-        X, y = optimization_data.view(self.constraints.selection, mode='log')
+
+        X = optimization_data['return_series']
+        y = optimization_data['bm_series']
+        if self.params.get('log_transform'):
+            X = np.log(1 + X)
+            y = np.log(1 + y)
 
         tau = self.params['tau']
         lambda_val = np.exp(-np.log(2) / tau)
@@ -169,40 +250,27 @@ class WeightedLeastSquares(Optimization):
         q = -2 * (X.T).to_numpy() @ W @ y
         constant = (y.T).to_numpy() @ W @ y
 
-        self.objective = Objective(P=P, q=q, constant=constant)
+        self.objective = Objective(P=P,
+                                   q=q,
+                                   constant=constant)
         return None
 
     def solve(self) -> bool:
         return super().solve()
 
-
-class QEQW(Optimization):
-
-    def __init__(self, *arg, **kwarg):
-        covariance = Covariance(method='duv')
-        super().__init__(covariance=covariance, *arg, **kwarg)
-
-    def set_objective(self, optimization_data: OptimizationData) -> None:
-        covmat = self.covariance.estimate(X=optimization_data['X']) * 2
-        mu = np.zeros(optimization_data['X'].shape[1])
-        self.objective = Objective(P=covmat, q=mu)
-        return None
-
-    def solve(self) -> bool:
-        return super().solve()
 
 
 class LAD(Optimization):
     # Least Absolute Deviation (same as mean absolute deviation, MAD)
 
-    def __init__(self, *arg, **kwarg):
-        super().__init__(*arg, **kwarg)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.params['use_level'] = self.params.get('use_level', True)
         self.params['use_log'] = self.params.get('use_log', True)
 
     def set_objective(self, optimization_data: OptimizationData) -> None:
-        X = optimization_data['X']
-        y = optimization_data['y']
+        X = optimization_data['return_series']
+        y = optimization_data['bm_series']
         if self.params.get('use_level'):
             X = (1 + X).cumprod()
             y = (1 + y).cumprod()
@@ -214,88 +282,14 @@ class LAD(Optimization):
 
         return None
 
-    def solve(self) -> None:
-        solver_name = self.params['solver_name']
-        if solver_name == 'gurobi':
-            self.solve_gurobi()
-        else:
-            self.solve_qpsolvers()
-        return None
-
-    def solve_gurobi(self) -> None:
-        # Data and constraints
-        X = to_numpy(self.objective['X'])
-        y = to_numpy(self.objective['y'])
-        GhAb = self.constraints.to_GhAb()
-        N = X.shape[1]
-        T = X.shape[0]
-
-        # Initiate an empty model
-        self.model = gp.Model('portfolio')
-        self.model.Params.LogToConsole = 0
-
-        # Add matrix variable for the asset weights
-        lb = to_numpy(self.constraints.box['lower'])
-        ub = to_numpy(self.constraints.box['upper'])
-        x = self.model.addMVar(N, lb=lb, ub=ub, vtype=gp.GRB.CONTINUOUS, name='x')
-
-        # Auxiliary variables to deal with the abs() function
-        aux_lad_pos = self.model.addMVar(T, lb=np.zeros(T), name='aux_lad_pos')
-        aux_lad_neg = self.model.addMVar(T, lb=np.zeros(T), name='aux_lad_neg')
-        self.model.addConstr(X @ x + aux_lad_pos - aux_lad_neg == y, name='aux_lad')
-
-        # Objective function
-        self.model.setObjective(aux_lad_pos.sum() + aux_lad_neg.sum(), gp.GRB.MINIMIZE)
-
-        # Add linear inequality constraints
-        if GhAb['G'] is not None:
-            self.model.addConstr(GhAb['G'] @ x <= GhAb['h'], name='Gh')
-
-        # Add linear equality constraints
-        if GhAb['A'] is not None:
-            self.model.addConstr(GhAb['A'] @ x == GhAb['b'], name='Ab')
-
-        # Add quadratic inequality constraints
-        quadcon = self.constraints.quadratic
-        if quadcon:
-            for key, value in quadcon.items():
-                if isinstance(value, dict):
-                    self.model.addConstr(value['q'].T @ x + (x @ value['Qc'] @ x) <= value['rhs'], key)
-
-        # Leverage constraint
-        if 'leverage' in self.constraints.l1.keys():
-            levcon = self.constraints.l1['leverage']
-            # Auxiliary variables to deal with the abs() function
-            aux_lvrg_pos = self.model.addMVar(N, lb=np.zeros(N), name='aux_lvrg_pos')
-            aux_lvrg_neg = self.model.addMVar(N, lb=np.zeros(N), name='aux_lvrg_neg')
-            self.model.addConstr(aux_lvrg_pos - aux_lvrg_neg == x, name='aux_leverage')
-            self.model.addConstr(aux_lvrg_pos.sum() + aux_lvrg_neg.sum() <= levcon['rhs'], 'leverage_budget')
-
-        # Solve and store results
-        self.model.optimize()
-        solved = True if self.model.status == 2 or (
-                    self.model.status == 13 and self.params['allow_suboptimal']) else False
-
-        if solved:
-            weights = pd.Series(self.model.x[0:N], index=self.constraints.selection)
-            obj_val = self.model.objVal
-        else:
-            weights = pd.Series(np.nan, index=self.constraints.selection)
-            obj_val = np.nan
-        self.results = {'weights': weights.to_dict(),
-                        'objective': obj_val,
-                        'status': self.model.status}
-        self.model.dispose()
-        return None
-
-    def solve_qpsolvers(self) -> None:
+    def solve(self) -> bool:
         # Note: Should use an interior point linear solver instead of qpsolvers
         self.model_qpsolvers()
         self.model.solve()
         weights = pd.Series(self.model['solution'].x[0:len(self.constraints.selection)],
                             index=self.constraints.selection)
         self.results = {'weights': weights.to_dict()}
-        return None
+        return True
 
     def model_qpsolvers(self) -> None:
         # Data and constraints
@@ -356,3 +350,68 @@ class LAD(Optimization):
                                                   ub=ub,
                                                   params=self.params)
         return None
+
+
+
+class PercentilePortfolios(Optimization):
+
+    def __init__(self, 
+                 field: Optional[str] = None,
+                 estimator: Optional[MeanEstimator] = None,
+                 n_percentiles = 5,  # creates quintile portfolios by default.
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.estimator = estimator
+        self.params = {'solver_name': 'percentile',
+                       'n_percentiles': n_percentiles,
+                       'field': field}
+
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+
+        field = self.params.get('field')
+        if self.estimator is not None:
+            if field is not None:
+                raise ValueError('Either specify a "field" or pass an "estimator", but not both.')
+            else:
+                scores = self.estimator.estimate(X = optimization_data['return_series'])
+        else:
+            if field is not None:
+                scores = optimization_data['scores'][field]
+            else:
+                score_weights = self.params.get('score_weights')
+                if score_weights is not None:
+                    # Compute weighted average
+                    scores = (
+                        optimization_data['scores'][score_weights.keys()]
+                        .multiply(score_weights.values())
+                        .sum(axis=1)
+                    )
+                else:
+                    scores = optimization_data['scores'].mean(axis = 1).squeeze()
+
+        # Add tiny noise to zeros since otherwise there might be two threshold values == 0
+        scores[scores == 0] = np.random.normal(0, 1e-10, scores[scores == 0].shape)
+        self.objective = Objective(scores = -scores)
+
+        return None
+
+    def solve(self) -> bool:
+
+        scores = self.objective['scores']
+        N = self.params['n_percentiles']
+        q_vec = np.linspace(0, 100, N + 1)
+        th = np.percentile(scores, q_vec)
+        lID = []
+        w_dict = {}
+        for i in range(1, len(th)):
+            if i == 1:
+                lID.append(list(scores.index[scores <= th[i]]))
+            else:
+                lID.append(list(scores.index[np.logical_and(scores > th[i-1], scores <= th[i])]))
+            w_dict[i] = scores[lID[i-1]] * 0 + 1 / len(lID[i-1])     
+        weights = scores * 0
+        weights[w_dict[1].keys()] = 1 / len(w_dict[1].keys())
+        weights[w_dict[N].keys()] = -1 / len(w_dict[N].keys())
+        self.results = {'weights': weights.to_dict(),
+                        'w_dict': w_dict}
+        return True

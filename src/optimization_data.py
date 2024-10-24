@@ -1,16 +1,19 @@
-# GeoFin : a python library for portfolio optimization and index replication
-# GeoFin is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
-# Copyright (c) 2024 Minh Ha Ho
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
+Licensed under GNU LGPL.3, see LICENCE file
+'''
+
 
 
 import numpy as np
 import pandas as pd
 from helper_functions import to_numpy
-from typing import List
+from typing import Optional
 
 
 class OptimizationData(dict):
@@ -24,7 +27,7 @@ class OptimizationData(dict):
         if align:
             self.align_dates()
 
-    def align_dates(self, variable_names: list = None) -> None:
+    def align_dates(self, variable_names: Optional[list[str]] = None) -> None:
         if variable_names is None:
             variable_names = self.keys()
         index = self.intersecting_dates(variable_names=list(variable_names))
@@ -32,7 +35,9 @@ class OptimizationData(dict):
             self[key] = self[key].loc[index]
         return None
 
-    def intersecting_dates(self, variable_names: list = None, dropna: bool = True) -> pd.DatetimeIndex:
+    def intersecting_dates(self,
+                           variable_names: Optional[list[str]] = None,
+                           dropna: bool = True) -> pd.DatetimeIndex:
         if variable_names is None:
             variable_names = list(self.keys())
         if dropna:
@@ -43,11 +48,3 @@ class OptimizationData(dict):
             index = index.intersection(self.get(variable_name).index)
         return index
 
-    def view(self, universe: List, mode: str):
-        X_raw = to_numpy(self['X'][universe])
-        y_raw = to_numpy(self['y'])
-
-        if mode == 'log':
-            return np.log(1 + X_raw), np.log(1 + y_raw)
-        else:
-            return X_raw, y_raw
