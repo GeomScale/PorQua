@@ -17,63 +17,8 @@ import numpy as np
 from typing import Dict
 
 
-# --------------------------------------------------------------------------
-# Helper functions
-# --------------------------------------------------------------------------
-
-def match_arg(x, lst):
-    return [el for el in lst if x in el][0]
-
-def box_constraint(box_type="LongOnly",
-                   lower=None,
-                   upper=None) -> dict:
-    box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
-
-    if box_type == "Unbounded":
-        lower = float("-inf") if lower is None else lower
-        upper = float("inf") if upper is None else upper
-    elif box_type == "LongShort":
-        lower = -1 if lower is None else lower
-        upper = 1 if upper is None else upper
-    elif box_type == "LongOnly":
-        if lower is None:
-            if upper is None:
-                lower = 0
-                upper = 1
-            else:
-                lower = upper * 0
-        else:
-            if not np.isscalar(lower):
-                if any(l < 0 for l in lower):
-                    raise ValueError("Inconsistent lower bounds for box_type 'LongOnly'. "
-                                     "Change box_type to LongShort or ensure that lower >= 0.")
-
-            upper = lower * 0 + 1 if upper is None else upper
-
-    return {'box_type': box_type, 'lower': lower, 'upper': upper}
-
-def linear_constraint(Amat=None,
-                      sense="=",
-                      rhs=float("inf"),
-                      index_or_name=None,
-                      a_values=None) -> dict:
-    ans = {'Amat': Amat,
-           'sense': sense,
-           'rhs': rhs}
-    if index_or_name is not None:
-        ans['index_or_name'] = index_or_name
-    if a_values is not None:
-        ans['a_values'] = a_values
-    return ans
 
 
-# --------------------------------------------------------------------------
-# Constraints class:
-#       *
-#       *
-#       *
-#       *
-# --------------------------------------------------------------------------
 
 class Constraints:
 
@@ -220,3 +165,55 @@ class Constraints:
         G = G.reshape(-1, G.shape[-1]) if G is not None else None
 
         return {'G': G, 'h': h, 'A': A, 'b': b}
+
+
+
+# --------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------
+
+def match_arg(x, lst):
+    return [el for el in lst if x in el][0]
+
+def box_constraint(box_type="LongOnly",
+                   lower=None,
+                   upper=None) -> dict:
+    box_type = match_arg(box_type, ["LongOnly", "LongShort", "Unbounded"])
+
+    if box_type == "Unbounded":
+        lower = float("-inf") if lower is None else lower
+        upper = float("inf") if upper is None else upper
+    elif box_type == "LongShort":
+        lower = -1 if lower is None else lower
+        upper = 1 if upper is None else upper
+    elif box_type == "LongOnly":
+        if lower is None:
+            if upper is None:
+                lower = 0
+                upper = 1
+            else:
+                lower = upper * 0
+        else:
+            if not np.isscalar(lower):
+                if any(l < 0 for l in lower):
+                    raise ValueError("Inconsistent lower bounds for box_type 'LongOnly'. "
+                                     "Change box_type to LongShort or ensure that lower >= 0.")
+
+            upper = lower * 0 + 1 if upper is None else upper
+
+    return {'box_type': box_type, 'lower': lower, 'upper': upper}
+
+def linear_constraint(Amat=None,
+                      sense="=",
+                      rhs=float("inf"),
+                      index_or_name=None,
+                      a_values=None) -> dict:
+    ans = {'Amat': Amat,
+           'sense': sense,
+           'rhs': rhs}
+    if index_or_name is not None:
+        ans['index_or_name'] = index_or_name
+    if a_values is not None:
+        ans['a_values'] = a_values
+    return ans
+

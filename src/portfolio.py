@@ -12,7 +12,6 @@ Licensed under GNU LGPL.3, see LICENCE file
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List
 
 
 # --------------------------------------------------------------------------
@@ -122,10 +121,10 @@ class Portfolio:
             return None
 
     def initial_weights(self,
-                        selection: List[str],
+                        selection: list[str],
                         return_series: pd.DataFrame,
                         end_date: str,
-                        rescale: bool = True) -> Dict[str, float]:
+                        rescale: bool = True) -> dict[str, float]:
 
         if not hasattr(self, '_initial_weights'):
             if self.rebalancing_date is not None and self.weights is not None:
@@ -159,7 +158,7 @@ class Portfolio:
 
 class Strategy:
 
-    def __init__(self, portfolios: List[Portfolio]):
+    def __init__(self, portfolios: list[Portfolio]):
         self.portfolios = portfolios
 
     @property
@@ -167,7 +166,7 @@ class Strategy:
         return self._portfolios
 
     @portfolios.setter
-    def portfolios(self, new_portfolios: List[Portfolio]):
+    def portfolios(self, new_portfolios: list[Portfolio]):
         if not isinstance(new_portfolios, list):
             raise TypeError('portfolios must be a list')
         if not all(isinstance(portfolio, Portfolio) for portfolio in new_portfolios):
@@ -181,7 +180,7 @@ class Strategy:
     def get_rebalancing_dates(self):
         return [portfolio.rebalancing_date for portfolio in self.portfolios]
 
-    def get_weights(self, rebalancing_date: str) -> Dict[str, float]:
+    def get_weights(self, rebalancing_date: str) -> dict[str, float]:
         for portfolio in self.portfolios:
             if portfolio.rebalancing_date == rebalancing_date:
                 return portfolio.weights

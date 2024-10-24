@@ -10,7 +10,7 @@ Licensed under GNU LGPL.3, see LICENCE file
 
 
 import os
-from typing import Optional
+from typing import Optional, Union, Any
 import pandas as pd
 import pickle
 

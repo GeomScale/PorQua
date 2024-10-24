@@ -19,9 +19,8 @@ Licensed under GNU LGPL.3, see LICENCE file
 import os
 from typing import Optional
 import pickle
-import copy
 
-from optimization import Optimization
+from optimization import Optimization, EmptyOptimization
 from optimization_data import OptimizationData
 from constraints import Constraints
 from portfolio import Portfolio, Strategy
@@ -44,7 +43,7 @@ class BacktestService():
                  data: BacktestData,
                  selection_item_builders: dict[str, SelectionItemBuilder],
                  optimization_item_builders: dict[str, OptimizationItemBuilder],
-                 optimization: Optimization,
+                 optimization: Optional[Optimization] = EmptyOptimization(),
                  settings: Optional[dict] = None,
                  **kwargs) -> None:
         self.data = data
@@ -151,15 +150,9 @@ class BacktestService():
 
 class Backtest:
 
-    def __init__(self,
-                 service: BacktestService) -> None:
-        self._service = service
+    def __init__(self) -> None:
         self._strategy = Strategy([])
         self._output = {}
-
-    @property
-    def service(self):
-        return self._service
 
     @property
     def strategy(self):
@@ -188,44 +181,44 @@ class Backtest:
         return True
 
     def rebalance(self,
-                  service: BacktestService,
+                  bs: BacktestService,
                   rebalancing_date: str) -> None:
 
         # Prepare the rebalancing, i.e., the optimization problem
-        service.prepare_rebalancing(rebalancing_date = rebalancing_date)
+        bs.prepare_rebalancing(rebalancing_date = rebalancing_date)
 
         # Solve the optimization problem
         try:
-            service.optimization.set_objective(data = service.optimization_data)
-            service.optimization.solve()
+            bs.optimization.set_objective(optimization_data = bs.optimization_data)
+            bs.optimization.solve()
         except Exception as error:
             raise RuntimeError(error)
 
         return None
 
-    def run(self, service: BacktestService) -> None:
+    def run(self, bs: BacktestService) -> None:
 
-        for rebalancing_date in service.settings['rebdates']:
+        for rebalancing_date in bs.settings['rebdates']:
 
-            if not service.settings.get('quiet'):
+            if not bs.settings.get('quiet'):
                 print(f'Rebalancing date: {rebalancing_date}')
 
-            self.rebalance(service = service,
+            self.rebalance(bs = bs,
                            rebalancing_date = rebalancing_date)
 
             # Append portfolio to strategy
-            weights = service.optimization.results['weights']
+            weights = bs.optimization.results['weights']
             portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
             self.strategy.portfolios.append(portfolio)
 
             # Append stuff to output if a custom append function is provided
-            append_fun = service.settings.get('append_fun')
+            append_fun = bs.settings.get('append_fun')
             if append_fun is not None:
                 append_fun(
                     backtest = self,
-                    service = service,
+                    bs = bs,
                     rebdate = rebalancing_date,
-                    what = service.settings.get('append_fun_args')
+                    what = bs.settings.get('append_fun_args')
                 )
 
         return None
@@ -243,3 +236,35 @@ class Backtest:
 
         return None
 
+
+
+# --------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------
+
+def append_custom(backtest: Backtest,
+                  bs: BacktestService,
+                  rebalancing_date: Optional[str] = None,
+                  what: Optional[list] = None) -> None:
+
+    if what is None:
+        what = ['w_dict', 'objective']
+
+    for key in what:
+        if key == 'w_dict':
+            w_dict = bs.optimization.results['w_dict']
+            for key in w_dict.keys():
+                weights = w_dict[key]                    
+                if hasattr(weights, 'to_dict'):
+                    weights = weights.to_dict()
+                portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
+                backtest.append_output(date_key = rebalancing_date,
+                                        output_key = f'weights_{key}',
+                                        value = pd.Series(portfolio.weights))
+        else:
+            if not key in bs.optimization.results.keys():
+                continue
+            backtest.append_output(date_key = rebalancing_date,
+                                    output_key = key,
+                                    value = bs.optimization.results[key])
+    return None

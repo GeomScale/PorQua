@@ -13,6 +13,8 @@ Licensed under GNU LGPL.3, see LICENCE file
 ############################################################################
 
 
+# Notice:
+# The logic underlying the approach to build backtest items favours flexibility over safety !
 
 
 
@@ -32,8 +34,8 @@ from abc import ABC, abstractmethod
 
 class BacktestItemBuilder(ABC):
 
-    def __init__(self, *args, **kwargs):
-        self._arguments = {f'arg{i}': arg for i, arg in enumerate(args)}
+    def __init__(self, **kwargs):
+        self._arguments = {}
         self._arguments.update(kwargs)
 
     @property

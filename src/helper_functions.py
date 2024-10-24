@@ -22,7 +22,6 @@ import pickle
 import matplotlib.pyplot as plt
 
 from portfolio import Portfolio, Strategy
-from backtest import BacktestService, Backtest
 
 
 
@@ -84,34 +83,6 @@ def to_numpy(data):
     return None if data is None else data.to_numpy() if hasattr(data, 'to_numpy') else data
 
 
-def append_custom(backtest: Backtest,
-                  service: BacktestService,
-                  rebalancing_date: Optional[str] = None,
-                  what: Optional[list] = None) -> None:
-
-    if what is None:
-        what = ['w_dict', 'objective']
-
-    for key in what:
-        if key == 'w_dict':
-            w_dict = service.optimization.results['w_dict']
-            for key in w_dict.keys():
-                weights = w_dict[key]                    
-                if hasattr(weights, 'to_dict'):
-                    weights = weights.to_dict()
-                portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
-                backtest.append_output(date_key = rebalancing_date,
-                                        output_key = f'weights_{key}',
-                                        value = pd.Series(portfolio.weights))
-        else:
-            if not key in service.optimization.results.keys():
-                continue
-            backtest.append_output(date_key = rebalancing_date,
-                                    output_key = key,
-                                    value = service.optimization.results[key])
-    return None
-
-
 def output_to_strategies(output: dict) -> dict[int, Strategy]:
 
     N = len(output[list(output.keys())[0]])
@@ -121,7 +92,7 @@ def output_to_strategies(output: dict) -> dict[int, Strategy]:
         for rebdate in output.keys():
             weights = output[rebdate][f'weights_{i+1}']
             if hasattr(weights, 'to_dict'):
-                weights = weights.to_dict()                        
+                weights = weights.to_dict()                 
             portfolio = Portfolio(rebdate, weights)
             strategy_dict[i].portfolios.append(portfolio)
 
