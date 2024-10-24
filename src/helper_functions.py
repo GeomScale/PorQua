@@ -88,13 +88,13 @@ def output_to_strategies(output: dict) -> dict[int, Strategy]:
     N = len(output[list(output.keys())[0]])
     strategy_dict = {}
     for i in range(N):
-        strategy_dict[i] = Strategy([])
+        strategy_dict[f'q{i+1}'] = Strategy([])
         for rebdate in output.keys():
             weights = output[rebdate][f'weights_{i+1}']
             if hasattr(weights, 'to_dict'):
                 weights = weights.to_dict()                 
             portfolio = Portfolio(rebdate, weights)
-            strategy_dict[i].portfolios.append(portfolio)
+            strategy_dict[f'q{i+1}'].portfolios.append(portfolio)
 
     return strategy_dict
 

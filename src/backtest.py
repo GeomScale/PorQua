@@ -20,6 +20,8 @@ import os
 from typing import Optional
 import pickle
 
+import pandas as pd
+
 from optimization import Optimization, EmptyOptimization
 from optimization_data import OptimizationData
 from constraints import Constraints
@@ -214,12 +216,10 @@ class Backtest:
             # Append stuff to output if a custom append function is provided
             append_fun = bs.settings.get('append_fun')
             if append_fun is not None:
-                append_fun(
-                    backtest = self,
-                    bs = bs,
-                    rebdate = rebalancing_date,
-                    what = bs.settings.get('append_fun_args')
-                )
+                append_fun(backtest = self,
+                           bs = bs,
+                           rebalancing_date = rebalancing_date,
+                           what = bs.settings.get('append_fun_args'))
 
         return None
 

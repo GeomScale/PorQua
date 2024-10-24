@@ -25,12 +25,18 @@ import numpy as np
 import pandas as pd
 
 # Local application imports
-from backtest import Backtest, BacktestService
+from backtest import (
+    Backtest,
+    BacktestService,
+    append_custom
+)
+from mean_estimation import MeanEstimator
 from optimization import (
     LeastSquares,
     WeightedLeastSquares,
     QEQW,
     LAD,
+    PercentilePortfolios,
 )
 from builders import (
     SelectionItemBuilder,
@@ -45,14 +51,20 @@ from data_loader import (
     load_pickle,
     load_data_msci,
 )
+from helper_functions import output_to_strategies
 
 
 
 
 
 
+# --------------------------------------------------------------------------
+# Load data and prepare backtest service
+# --------------------------------------------------------------------------
 
-path_to_data = '../data/'  # Change this to your path
+
+
+path_to_data = '../data/'
 
 # Prepare data
 data = load_data_msci(path = path_to_data, n = 24)
@@ -69,11 +81,6 @@ rebdates
 
 
 
-
-
-
-
-
 '''
 Define the selection item builders.
 SelectionItemBuilder is a callable class which takes a function (bibfn) as argument.
@@ -82,13 +89,18 @@ pandas Series of boolean values indicating the selected assets at a given rebala
 The function bibfn takes the backtest service (bs) and the rebalancing date (rebdate) as arguments.
 Additional keyword arguments can be passed to bibfn using the arguments attribute of the SelectionItemBuilder instance.
 The selection item is then added to the Selection attribute of the backtest service using the add_item method.
+To inspect the current instance of the selection object, type bs.selection.df()
 '''
 
 selection_item_builders = {
     'data': SelectionItemBuilder(bibfn = bibfn_selection_data),
     # 'ltr': SelectionItemBuilder(bibfn = bibfn_selection_ltr),
-    # 'growth': SelectionItemBuilder(bibfn = bibfn_selection_growth, sector_stdz = True),
+    # 'volume': SelectionItemBuilder(bibfn = bibfn_selection_volume, sector_stdz = True),
 }
+
+
+
+
 
 
 '''
@@ -105,7 +117,7 @@ optimization_item_builders = {
     'return_series': OptimizationItemBuilder(bibfn = bibfn_return_series, width = 365 * 3),
     'bm_series': OptimizationItemBuilder(bibfn = bibfn_bm_series, width = 365 * 3),
     'budget_constraint': OptimizationItemBuilder(bibfn = bibfn_budget_constraint, budget = 1),
-    'box_constraints': OptimizationItemBuilder(bibfn = bibfn_box_constraints),
+    'box_constraints': OptimizationItemBuilder(bibfn = bibfn_box_constraints, upper = 0.1),
 }
 
 
@@ -119,6 +131,14 @@ bs = BacktestService(
 )
 
 
+
+
+
+
+
+# --------------------------------------------------------------------------
+# Run backtests
+# --------------------------------------------------------------------------
 
 
 # Run backtest of a Quasi Equal Weights model
@@ -174,7 +194,9 @@ bt_lad.run(bs = bs)
 
 
 
-# Simulation
+# --------------------------------------------------------------------------
+# Simulate strategies
+# --------------------------------------------------------------------------
 
 fixed_costs = 0
 variable_costs = 0
@@ -182,7 +204,7 @@ variable_costs = 0
 sim_qeqw = bt_qeqw.strategy.simulate(return_series = bs.data['return_series'], fc = fixed_costs, vc = variable_costs)
 sim_ls = bt_ls.strategy.simulate(return_series = bs.data['return_series'], fc = fixed_costs, vc = variable_costs)
 sim_wls = bt_wls.strategy.simulate(return_series = bs.data['return_series'], fc = fixed_costs, vc = variable_costs)
-sim_lad = bt_lad.strategy.simulate(return_series = bs.data['return_series'], fc = fixed_costs, vc = variable_costs)
+# sim_lad = bt_lad.strategy.simulate(return_series = bs.data['return_series'], fc = fixed_costs, vc = variable_costs)
 
 sim = pd.concat({
     'bm': bs.data['bm_series'],
@@ -201,25 +223,51 @@ np.log((1 + sim)).cumsum().plot(figsize = (10, 6))
 
 
 
+# --------------------------------------------------------------------------
+# Backtest quintile portfolios based on geometric mean estimator
+# --------------------------------------------------------------------------
 
-# Run quintile portfolio bakctests
+# Initialize the backtest service
+bs = BacktestService(
+    data = data,
+    selection_item_builders = selection_item_builders,
+    optimization_item_builders = optimization_item_builders,
+    rebdates = rebdates,
+    append_fun = append_custom,
+    append_fun_args = ['w_dict']
+)
 
-bs.optimization = QuintilePortfolio()
+# Define the mean estimator
+mean_estimator = MeanEstimator(
+    method = 'geometric',
+    scalefactor = 1,
+    n_mom = 252,
+    n_rev = 21,
+)
+
+# Define portfolio optimization object and run backtest
+bs.optimization = PercentilePortfolios(
+    n_percentile = 5,
+    estimator = mean_estimator,
+)
 bt_qp = Backtest()
 bt_qp.run(bs = bs)
 
 
+# Simulate the strategies
+strat_dict = output_to_strategies(bt_qp.output)
 
+# Simulate
+fixed_costs = 0
+variable_costs = 0
+sim_dict = {
+    key: value.simulate(return_series = bs.data['return_series'], fc = fixed_costs, vc = variable_costs)
+    for key, value in strat_dict.items()
+}
+sim_qp = pd.concat(sim_dict, axis = 1).dropna()
 
-
-
-
-
-
-
-
-
-
+# Plot
+np.log((1 + sim_qp)).cumsum().plot(figsize = (10, 6))
 
 
 

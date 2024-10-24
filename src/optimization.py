@@ -1,10 +1,18 @@
-# GeoFin : a python library for portfolio optimization and index replication
-# GeoFin is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
-# Copyright (c) 2024 Minh Ha Ho
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
+Licensed under GNU LGPL.3, see LICENCE file
+'''
+
+
+############################################################################
+### OPTIMIZATION
+############################################################################
+
 
 
 from abc import ABC, abstractmethod
@@ -16,11 +24,17 @@ import pandas as pd
 
 from helper_functions import to_numpy
 from covariance import Covariance
+from mean_estimation import MeanEstimator
 from constraints import Constraints
 from optimization_data import OptimizationData
 import qp_problems
 
 # https://github.com/qpsolvers/qpsolvers
+
+
+
+
+
 
 
 class OptimizationParameter(dict):
@@ -309,3 +323,68 @@ class LAD(Optimization):
                                                   ub=ub,
                                                   params=self.params)
         return None
+
+
+
+class PercentilePortfolios(Optimization):
+
+    def __init__(self, 
+                 field: Optional[str] = None,
+                 estimator: Optional[MeanEstimator] = None,
+                 n_percentiles = 5,  # creates quintile portfolios by default.
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.estimator = estimator
+        self.params = {'solver_name': 'percentile',
+                       'n_percentiles': n_percentiles,
+                       'field': field}
+
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+
+        field = self.params.get('field')
+        if self.estimator is not None:
+            if field is not None:
+                raise ValueError('Either specify a "field" or pass an "estimator", but not both.')
+            else:
+                scores = self.estimator.estimate(X = optimization_data['return_series'])
+        else:
+            if field is not None:
+                scores = optimization_data['scores'][field]
+            else:
+                score_weights = self.params.get('score_weights')
+                if score_weights is not None:
+                    # Compute weighted average
+                    scores = (
+                        optimization_data['scores'][score_weights.keys()]
+                        .multiply(score_weights.values())
+                        .sum(axis=1)
+                    )
+                else:
+                    scores = optimization_data['scores'].mean(axis = 1).squeeze()
+
+        # Add tiny noise to zeros since otherwise there might be two threshold values == 0
+        scores[scores == 0] = np.random.normal(0, 1e-10, scores[scores == 0].shape)
+        self.objective = Objective(scores = -scores)
+
+        return None
+
+    def solve(self) -> bool:
+
+        scores = self.objective['scores']
+        N = self.params['n_percentiles']
+        q_vec = np.linspace(0, 100, N + 1)
+        th = np.percentile(scores, q_vec)
+        lID = []
+        w_dict = {}
+        for i in range(1, len(th)):
+            if i == 1:
+                lID.append(list(scores.index[scores <= th[i]]))
+            else:
+                lID.append(list(scores.index[np.logical_and(scores > th[i-1], scores <= th[i])]))
+            w_dict[i] = scores[lID[i-1]] * 0 + 1 / len(lID[i-1])     
+        weights = scores * 0
+        weights[w_dict[1].keys()] = 1 / len(w_dict[1].keys())
+        weights[w_dict[N].keys()] = -1 / len(w_dict[N].keys())
+        self.results = {'weights': weights.to_dict(),
+                        'w_dict': w_dict}
+        return True
