@@ -1,166 +1,270 @@
-# GeoFin : a python library for portfolio optimization and index replication
-# GeoFin is part of GeomScale project
+'''
+PorQua : a python library for portfolio optimization and backtesting
+PorQua is part of GeomScale project
 
-# Copyright (c) 2024 Cyril Bachelard
-# Copyright (c) 2024 Minh Ha Ho
+Copyright (c) 2024 Cyril Bachelard
+Copyright (c) 2024 Minh Ha Ho
 
-# Licensed under GNU LGPL.3, see LICENCE file
+Licensed under GNU LGPL.3, see LICENCE file
+'''
 
 
-from optimization import *
-from constraints import Constraints
+############################################################################
+### CLASSES BacktestData, BacktestService, Backtest
+############################################################################
+
+
+
+
+import os
+from typing import Optional
+import pickle
+
+import pandas as pd
+
+from optimization import Optimization, EmptyOptimization
 from optimization_data import OptimizationData
+from constraints import Constraints
 from portfolio import Portfolio, Strategy
-from universe_selection import UniverseSelection
-from typing import Dict, List
+from selection import Selection
+from builders import SelectionItemBuilder, OptimizationItemBuilder
+
+
+
+
+
+class BacktestData():
+
+    def __init__(self):
+        pass
+
+
+class BacktestService():
+
+    def __init__(self,
+                 data: BacktestData,
+                 selection_item_builders: dict[str, SelectionItemBuilder],
+                 optimization_item_builders: dict[str, OptimizationItemBuilder],
+                 optimization: Optional[Optimization] = EmptyOptimization(),
+                 settings: Optional[dict] = None,
+                 **kwargs) -> None:
+        self.data = data
+        self.optimization = optimization
+        self.selection_item_builders = selection_item_builders
+        self.optimization_item_builders = optimization_item_builders
+        self.settings = settings if settings is not None else {}
+        self.settings.update(kwargs)
+        # Initialize the selection and optimization data
+        self.selection = Selection()
+        self.optimization_data = OptimizationData([])
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+
+    @property
+    def selection(self):
+        return self._selection
+
+    @selection.setter
+    def selection(self, value):
+        if not isinstance(value, Selection):
+            raise TypeError("Expected a Selection instance for 'selection'")
+        self._selection = value
+
+    @property
+    def selection_item_builders(self):
+        return self._selection_item_builders
+
+    @selection_item_builders.setter
+    def selection_item_builders(self, value):
+        if not isinstance(value, dict) or not all(
+            isinstance(v, SelectionItemBuilder) for v in value.values()
+        ):
+            raise TypeError(
+                "Expected a dictionary containing SelectionItemBuilder instances "
+                "for 'selection_item_builders'"
+            )
+        self._selection_item_builders = value
+
+    @property
+    def optimization(self):
+        return self._optimization
+
+    @optimization.setter
+    def optimization(self, value):
+        if not isinstance(value, Optimization):
+            raise TypeError("Expected an Optimization instance for 'optimization'")
+        self._optimization = value
+
+    @property
+    def optimization_item_builders(self):
+        return self._optimization_item_builders
+
+    @optimization_item_builders.setter
+    def optimization_item_builders(self, value):
+        if not isinstance(value, dict) or not all(
+            isinstance(v, OptimizationItemBuilder) for v in value.values()
+        ):
+            raise TypeError(
+                "Expected a dictionary containing OptimizationItemBuilder instances "
+                "for 'optimization_item_builders'"
+            )
+        self._optimization_item_builders = value
+
+    @property
+    def settings(self):
+        return self._settings
+
+    @settings.setter
+    def settings(self, value):
+        if not isinstance(value, dict):
+            raise TypeError("Expected a dictionary for 'settings'")
+        self._settings = value
+
+    def build_selection(self, rebdate: str) -> None:
+        # Loop over the selection_item_builders items
+        for key, item_builder in self.selection_item_builders.items():
+            item_builder.arguments['item_name'] = key
+            item_builder(self, rebdate)
+        return None
+
+    def build_optimization(self, rebdate: str) -> None:
+
+        # Initialize the optimization constraints
+        self.optimization.constraints = Constraints(selection = self.selection.selected)
+
+        # Loop over the optimization_item_builders items
+        for item_builder in self.optimization_item_builders.values():
+            item_builder(self, rebdate)
+        return None
+
+    def prepare_rebalancing(self, rebalancing_date: str) -> None:
+        self.build_selection(rebdate = rebalancing_date)
+        self.build_optimization(rebdate = rebalancing_date)
+        return None
+
 
 
 class Backtest:
 
-    def __init__(self, rebdates: List[str], data: Dict, universe=None, selection_model: UniverseSelection = None, constraint_provider: 'BacktestConstraintProvider' = None, **kwargs):
-        self.rebdates = rebdates
-        self.data = data
-        self.strategy: Strategy = Strategy([])
-        self.universe = universe
-        self.selection_model = selection_model
-        self.constraint_provider: BacktestConstraintProvider = constraint_provider
-        self.optimization: Optimization = None
-        self.models = []  # for debug
-        self.settings = {**kwargs}
-
-    def prepare_optimization_data(self, rebdate: str) -> OptimizationData:
-        # Subset the return series
-        X = self.data['return_series']
-        y = self.data['return_series_index']
-
-        width = self.settings.get('width')
-        if width is None:
-            width = min(X.shape[0] - 1, y.shape[0] - 1)
-
-        data = OptimizationData(align=False)
-        data['X'] = X[X.index <= rebdate].tail(width + 1)
-        data['y'] = y[y.index <= rebdate].tail(width + 1)
-
-        return data
-
-    def prepare_optimization(self, rebdate: str, x_init: dict) -> Optimization:
-        optimization = self.optimization  # need to copy here
-        optimization.params['x0'] = x_init
-
-        # Prepare optimization data
-        data = self.prepare_optimization_data(rebdate=rebdate)
-
-        # select universe
-        if self.constraint_provider is not None:
-            selected_assets = self.selection_model.select(data['X'], nb_stocks=20) if self.selection_model is not None else data['X'].columns.tolist()
-            optimization.constraints = self.constraint_provider.build_constraints(selected_assets)
-
-        optimization.set_objective(optimization_data=data)
-        return optimization
-
-    def run(self) -> None:
-
-        rebdates = self.rebdates
-        for rebdate in rebdates:
-            if not self.settings.get('quiet'):
-                print(f"Rebalancing date: {rebdate}")
-
-            # Load previous portfolio (i.e., the one from last rebalancing if exists).
-            prev_portfolio = self.strategy.get_initial_portfolio(rebalancing_date=rebdate)
-            # Floated weights
-            x_init = prev_portfolio.initial_weights(selection=self.data['return_series'].columns,
-                                                    return_series=self.data['return_series'],
-                                                    end_date=rebdate,
-                                                    rescale=False)
-
-            # Prepare optimization data
-            optimization = self.prepare_optimization(rebdate, x_init)
-
-            # Solve the optimization problem
-            try:
-                optimization.solve()
-                weights = optimization.results['weights']
-                portfolio = Portfolio(rebalancing_date=rebdate, weights=weights, init_weights=x_init)
-                self.strategy.portfolios.append(portfolio)
-            except Exception as error:
-                raise RuntimeError(error)
-            finally:
-                # Append the optimized portfolio to the strategy, especially the failed ones for debugging
-                self.models.append(optimization.model)
-
-        return None
-
-    def compute_summary(self, fc: float = 0, vc: float = 0):
-        # Simulation
-        sim_bt = self.strategy.simulate(return_series=self.data['return_series'], fc=fc, vc=vc)
-        turnover = self.strategy.turnover(return_series=self.data['return_series'])
-
-        # Analyze weights
-        weights = self.strategy.get_weights_df()
-
-        # Analyze simulation
-        sim = pd.concat({'sim': sim_bt, 'index': self.data['return_series_index']}, axis=1).dropna()
-        sim.columns = sim.columns.get_level_values(0)
-        sim = np.log(1 + sim).cumsum()
-
-        return {'number_of_assets': self.strategy.number_of_assets(),
-                'returns': sim,
-                'turnover': turnover,
-                'weights': weights}
-
-
-class BacktestConstraintProvider:
-
     def __init__(self) -> None:
-        self.budget = {'sense': None, 'rhs': None}
-        self.box = {'box_type': 'NA', 'lower': None, 'upper': None}
-        self.l1 = {}
+        self._strategy = Strategy([])
+        self._output = {}
+
+    @property
+    def strategy(self):
+        return self._strategy
+
+    @property
+    def output(self):
+        return self._output
+
+    def append_output(self,
+                      date_key = None,
+                      output_key = None,
+                      value = None):
+        if value is None:
+            return True
+
+        if date_key in self.output.keys():
+            if output_key in self.output[date_key].keys():
+                raise Warning(f"Output key '{output_key}' for date key '{date_key}' \
+                    already exists and will be overwritten.")
+            self.output[date_key][output_key] = value
+        else:
+            self.output[date_key] = {}
+            self.output[date_key].update({output_key: value})
+
+        return True
+
+    def rebalance(self,
+                  bs: BacktestService,
+                  rebalancing_date: str) -> None:
+
+        # Prepare the rebalancing, i.e., the optimization problem
+        bs.prepare_rebalancing(rebalancing_date = rebalancing_date)
+
+        # Solve the optimization problem
+        try:
+            bs.optimization.set_objective(optimization_data = bs.optimization_data)
+            bs.optimization.solve()
+        except Exception as error:
+            raise RuntimeError(error)
+
         return None
 
-    def add_budget(self, rhs=1, sense='=') -> None:
-        if self.budget.get('rhs') is not None:
-            print("Existing budget constraint is overwritten")
-        self.budget = {'sense': sense, 'rhs': rhs}
+    def run(self, bs: BacktestService) -> None:
+
+        for rebalancing_date in bs.settings['rebdates']:
+
+            if not bs.settings.get('quiet'):
+                print(f'Rebalancing date: {rebalancing_date}')
+
+            self.rebalance(bs = bs,
+                           rebalancing_date = rebalancing_date)
+
+            # Append portfolio to strategy
+            weights = bs.optimization.results['weights']
+            portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
+            self.strategy.portfolios.append(portfolio)
+
+            # Append stuff to output if a custom append function is provided
+            append_fun = bs.settings.get('append_fun')
+            if append_fun is not None:
+                append_fun(backtest = self,
+                           bs = bs,
+                           rebalancing_date = rebalancing_date,
+                           what = bs.settings.get('append_fun_args'))
+
         return None
 
-    def add_box(self,
-                box_type="LongOnly",
-                lower=None,
-                upper=None) -> None:
-        if box_type == "Unbounded":
-            lower = float("-inf") if lower is None else lower
-            upper = float("inf") if upper is None else upper
-        elif box_type == "LongShort":
-            lower = -1 if lower is None else lower
-            upper = 1 if upper is None else upper
-        elif box_type == "LongOnly":
-            upper = 1 if upper is None else upper
-            if lower is None:
-                lower = 0
-            elif lower < 0:
-                raise ValueError("Negative lower bounds for box_type 'LongOnly'")
+    def save(self,
+             filename: str,
+             path: Optional[str] = None) -> None:
+        try:
+            if path is not None and filename is not None:
+                filename = os.path.join(path, filename)   #// alternatively, use pathlib package
+            with open(filename, "wb") as f:
+                pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as ex:
+            print("Error during pickling object:", ex)
 
-        self.box = {'box_type': box_type, 'lower': lower, 'upper': upper}
         return None
 
-    def add_l1(self, name: str, rhs: float, x0=None) -> None:
-        self.l1[name] = {'name': name, 'rhs': rhs, 'x0': x0}
-        return None
 
-    def build_constraints(self, universe=None) -> Constraints:
-        if universe is None:
-            raise ValueError(f'Universe is required to build constraints')
 
-        constraints = Constraints(selection=universe)
+# --------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------
 
-        budget = self.budget
-        constraints.add_budget(budget['rhs'], budget['sense'])
+def append_custom(backtest: Backtest,
+                  bs: BacktestService,
+                  rebalancing_date: Optional[str] = None,
+                  what: Optional[list] = None) -> None:
 
-        boxcon = self.box
-        if boxcon is not None and boxcon['box_type'] != 'NA':
-            constraints.add_box(box_type=boxcon['box_type'], lower=boxcon['lower'], upper=boxcon['upper'])
+    if what is None:
+        what = ['w_dict', 'objective']
 
-        for l1_con in self.l1.values():
-            constraints.add_l1(name=l1_con['name'], rhs=l1_con['rhs'], x0=l1_con['x0'])
-
-        return constraints
+    for key in what:
+        if key == 'w_dict':
+            w_dict = bs.optimization.results['w_dict']
+            for key in w_dict.keys():
+                weights = w_dict[key]                    
+                if hasattr(weights, 'to_dict'):
+                    weights = weights.to_dict()
+                portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
+                backtest.append_output(date_key = rebalancing_date,
+                                        output_key = f'weights_{key}',
+                                        value = pd.Series(portfolio.weights))
+        else:
+            if not key in bs.optimization.results.keys():
+                continue
+            backtest.append_output(date_key = rebalancing_date,
+                                    output_key = key,
+                                    value = bs.optimization.results[key])
+    return None
