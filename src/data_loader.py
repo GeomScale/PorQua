@@ -36,14 +36,13 @@ def load_data_msci(path: str = None, n: int = 24) -> dict[str, pd.DataFrame]:
     '''Loads MSCI daily returns data from 1999-01-01 to 2023-04-18'''
 
     path = os.path.join(os.getcwd(), f'data{os.sep}') if path is None else path
-    dateparse = lambda d : dt.datetime.strptime(d, '%d-%m-%Y')
 
     # Load msci country index return series
     df = pd.read_csv(os.path.join(path, 'msci_country_indices.csv'),
                         index_col=0,
                         header=0,
                         parse_dates=True,
-                        date_parser=dateparse)
+                        date_format='%d-%m-%Y')
     series_id = df.columns[0:n]
     X = df[series_id]
 
@@ -52,7 +51,7 @@ def load_data_msci(path: str = None, n: int = 24) -> dict[str, pd.DataFrame]:
                     index_col=0,
                     header=0,
                     parse_dates=True,
-                    date_parser=dateparse)
+                    date_format='%d-%m-%Y')
 
     return {'return_series': X, 'bm_series': y}
 
