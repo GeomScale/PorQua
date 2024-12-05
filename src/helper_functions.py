@@ -20,6 +20,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+import numpy as np
 
 from portfolio import Portfolio, Strategy
 
@@ -127,3 +128,76 @@ def show_result(predictions, y_test, y_actual, method = None):
     plt.legend(["True values", "Prediction"])
     plt.title(method)
     plt.show()
+
+
+
+
+#------------------- Sampling long-only portfolios helpers -------------------
+
+def sample_constrained_simplex(
+    n: int,
+    nsamples: int,
+    lb: np.ndarray | list = None,
+    ub: np.ndarray | list = None
+) -> np.ndarray:
+    """
+    Sample points from canonical simplex with coordinate-wise upper and lower bounds.
+    
+    Args:
+        n: Dimension of the simplex
+        nsamples: Number of desired samples to keep
+        ub: Vector of upper bounds for each coordinate
+        lb: Vector of lower bounds for each coordinate (default: zeros)
+    
+    Returns:
+        np.ndarray: Array of shape (nsamples, n) containing valid samples
+    
+    Raises:
+        ValueError: If bounds dimensions don't match n or are inconsistent
+    """
+    # Convert inputs to numpy arrays and validate
+    if ub is None:
+        ub = np.ones(n)
+    else:
+        ub = np.asarray(ub)
+    if lb is None:
+        lb = np.zeros(n)
+    else:
+        lb = np.asarray(lb)
+    
+    # Input validation
+    if len(ub) != n or len(lb) != n:
+        raise ValueError(f"Bounds must have length {n}")
+    if not np.all(ub > lb):
+        raise ValueError("Upper bounds must be greater than lower bounds")
+    if not np.all(lb >= 0):
+        raise ValueError("Lower bounds must be non-negative")
+    if np.sum(lb) > 1 or np.max(ub) < 1/n:
+        raise ValueError("Bounds are incompatible with simplex constraints")
+    
+    valid_samples = []
+    batch_size = max(1000, nsamples * 10)  # Adjust batch size based on target
+    max_iter = 10000
+    iter = 0
+    success = False
+    while len(valid_samples) < nsamples and iter < max_iter:
+        # Generate exponential random variables
+        Y = np.random.exponential(scale=1.0, size=(batch_size, n))
+        
+        # Normalize by row sums to get points on simplex
+        row_sums = Y.sum(axis=1, keepdims=True)
+        E = Y / row_sums
+        
+        # Filter points where coordinates are within bounds
+        valid_mask = np.all(E <= ub, axis=1) & np.all(E >= lb, axis=1)
+        valid_points = E[valid_mask]
+        
+        valid_samples.extend(valid_points)
+        
+        # Trim to exact size if we have enough samples
+        if len(valid_samples) >= nsamples:
+            valid_samples = valid_samples[:nsamples]
+            success = True
+            break
+        iter += 1
+    return np.array(valid_samples), success
