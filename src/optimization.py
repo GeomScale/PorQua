@@ -20,7 +20,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-
+from scipy.optimize import linprog
 
 from helper_functions import to_numpy
 from covariance import Covariance
@@ -414,4 +414,184 @@ class PercentilePortfolios(Optimization):
         weights[w_dict[N].keys()] = -1 / len(w_dict[N].keys())
         self.results = {'weights': weights.to_dict(),
                         'w_dict': w_dict}
+        return True
+
+
+
+class ScoreConstrainedPortfolios(Optimization):
+    """
+    This class computes score-constrained portfolios.
+
+    It sets n score levels and computes n percentile portfolios.
+    For each percentile portfolio it computes the corresponding
+    score constrained portfolio that is the closest to it
+    according to the L1 norm.
+    """
+
+    def __init__(self,
+                 field: Optional[str] = None,
+                 estimator: Optional[MeanEstimator] = None,
+                 n_score_levels = 5,
+                 equivolume_distanced = False,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.params = {'solver_name': 'ScoreConstrained',
+                       'n_score_levels': n_score_levels,
+                       'equivolume_distanced': equivolume_distanced,
+                       'field': field}
+        self.percentile_portfolio_solver = PercentilePortfolios(
+            n_percentiles = n_score_levels,
+            estimator = estimator,
+        )
+        self.sampling_done = False
+        self.samples = None
+        self.num_samples_factor = 10000
+    
+    def set_objective(self, optimization_data: OptimizationData) -> None:
+        self.percentile_portfolio_solver.set_objective(optimization_data)
+
+    def solve(self) -> dict:
+        if not self.sampling_done and self.params.get('equivolume_distanced'):
+            success = self.compute_samples()
+            if not success:
+                self.params['equivolume_distanced'] = False
+                print("Equi-volume distanced score levels failed. Using linear programming instead.")
+            else:
+                self.sampling_done = True
+
+        self.percentile_portfolio_solver.solve()
+        scores = self.percentile_portfolio_solver.objective['scores']
+        N = self.params['n_score_levels']
+
+        constraints = self.constraints
+        GhAb = constraints.to_GhAb()
+
+        if not self.params.get('equivolume_distanced'):
+            min_score, max_score = self.get_max_min_score(scores, GhAb)
+
+            # set N equi-distanced score values starting from min and the last being the max
+            score_vec = np.linspace(min_score, max_score, N+2)
+            # keep all except the first and the last one
+            score_vec = score_vec[1:-1]
+        else:
+            score_vec = self.samples @ scores
+            
+            # Sort the score vector
+            sorted_scores = np.sort(score_vec)
+
+            # Calculate indices for N evenly spaced percentiles 
+            n_samples = len(sorted_scores)
+            indices = [int(i * n_samples/(N+1)) for i in range(1, N+1)]
+
+            # Get the score values at those indices
+            score_vec = sorted_scores[indices]
+
+        n = len(scores)
+
+        # we represent the portfolio domain with the form P = {x | Gx <= h, Ax = b}
+        lb = constraints.box['lower'] if constraints.box['box_type'] != 'NA' else None
+        ub = constraints.box['upper'] if constraints.box['box_type'] != 'NA' else None
+
+        A = GhAb['A']
+        b = GhAb['b']
+        
+        G = None
+        h = None
+        if GhAb['G'] is None:
+            G = np.block([
+                [np.eye(n)],
+                [-np.eye(n)]
+            ])
+        else:
+            G = np.block([
+                GhAb['G'],
+                [np.eye(n)],
+                [-np.eye(n)]
+            ])
+        if GhAb['h'] is None:
+            if ub is None or lb is None:
+                raise ValueError("Portfolio domain is unbounded.")
+            h = np.append(ub, -lb)
+        else:
+            h = np.concatenate([GhAb['h'], ub, -np.array(lb)])
+        # we add the coefficients of the slack variables in G before the loop because they are the same for all iterations
+        G_iter = np.block([
+            [G, np.zeros((G.shape[0], n))],
+            [np.eye(n), -np.eye(n)],
+            [-np.eye(n), -np.eye(n)],
+            [np.zeros((n, n)), -np.eye(n)]
+        ])
+        bounds = list(zip(np.full(2*n, -np.inf), np.full(2*n, np.inf)))
+        # the objective function which is the \sum y_i
+        c = np.concatenate([np.zeros(n), np.ones(n)])
+
+        w_dict = {}
+        counter = 0
+        for score in score_vec:
+            w = scores * 0
+            w_perc = self.percentile_portfolio_solver.results['w_dict'][counter+1]
+            w[w_perc.keys()] = 1 / len(w_perc.keys())
+            
+            # add the score constraint
+            A_iter = np.vstack((A, scores.to_numpy()))
+            b_iter = np.append(b, score)
+            # shift the origin to the percentile portfolio w
+            b_iter = b_iter - A_iter @ w
+            h_iter = h - G @ w
+            # add the coefficients of the slack variables
+            A_iter = np.hstack((A_iter, np.zeros((A_iter.shape[0], n))))
+            h_iter = np.append(h_iter, np.zeros(3*n))
+            # solve the linear program that minimizes the L1 distance from w
+            result = linprog(c=c, A_ub=G_iter, b_ub=h_iter, A_eq=A_iter, b_eq=b_iter, bounds = bounds)
+
+            if not result.success:
+                raise ValueError("L1 minimization failed.") #stop excecution
+
+            weights = scores * 0
+            # take the first n coordinates of the solution and ignore the slack variables
+            weights[scores.keys()] = result.x[:n]
+            w_dict[counter+1] = weights + w # shift back by w
+            counter += 1
+
+        weights = w_dict[1] - w_dict[N]
+        self.results = {
+            'weights': weights.to_dict(),
+            'w_dict': w_dict
+        }
+        return True
+    
+    def get_max_min_score(self, scores, GhAb):
+        n = len(scores)
+        lb = self.constraints.box['lower'] if self.constraints.box['box_type'] != 'NA' else [None] * n
+        ub = self.constraints.box['upper'] if self.constraints.box['box_type'] != 'NA' else [None] * n
+        bounds = list(zip(lb, ub))
+
+        port_min_score = linprog(c = scores, A_ub = GhAb['G'], b_ub = GhAb['h'], A_eq=GhAb['A'], b_eq=GhAb['b'], bounds = bounds)
+        port_max_score = linprog(c = -scores, A_ub = GhAb['G'], b_ub = GhAb['h'], A_eq=GhAb['A'], b_eq=GhAb['b'], bounds = bounds)
+        return port_min_score.fun, -port_max_score.fun
+
+    def compute_samples(self):
+        GhAb = self.constraints.to_GhAb()
+        n = GhAb['A'].shape[1]
+        n_score_levels = self.params['n_score_levels']
+        lb = self.constraints.box['lower'] if self.constraints.box['box_type'] != 'NA' else None
+        ub = self.constraints.box['upper'] if self.constraints.box['box_type'] != 'NA' else None
+        # check if the portfolio domain is a subset of the canonical simplex
+        if not (GhAb['A'] is not None and GhAb['A'].shape[0] == 1 and np.all(GhAb['A'][0] == 1) and GhAb['A'].shape[1] == n):
+            return False
+        if not (GhAb['b'] is not None and np.asarray(GhAb['b']).size == 1 and np.asarray(GhAb['b']).item() == 1):
+            return False
+        if GhAb['G'] is not None or GhAb['h'] is not None:
+            return False
+        if not (isinstance(lb, pd.Series) and len(lb) == n and np.all(lb >= 0)):
+            return False
+        if not (isinstance(ub, pd.Series) and len(ub) == n and np.all(ub <= 1) and np.all(ub > lb)):
+            return False
+        
+        from helper_functions import sample_constrained_simplex
+
+        samples, success = sample_constrained_simplex(n=n, nsamples=(n_score_levels+1)*self.num_samples_factor, lb=lb, ub=ub)
+        if not success:
+            return False
+        self.samples = samples
         return True
