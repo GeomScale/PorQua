@@ -205,8 +205,7 @@ class Backtest:
             if not bs.settings.get('quiet'):
                 print(f'Rebalancing date: {rebalancing_date}')
 
-            self.rebalance(bs = bs,
-                           rebalancing_date = rebalancing_date)
+            self.rebalance(bs = bs, rebalancing_date = rebalancing_date)
 
             # Append portfolio to strategy
             weights = bs.optimization.results['weights']
@@ -251,19 +250,18 @@ def append_custom(backtest: Backtest,
         what = ['w_dict', 'objective']
 
     for key in what:
+        if key not in bs.optimization.results.keys():
+            continue
+
         if key == 'w_dict':
             w_dict = bs.optimization.results['w_dict']
-            for key in w_dict.keys():
-                weights = w_dict[key]                    
-                if hasattr(weights, 'to_dict'):
-                    weights = weights.to_dict()
+            for w_key, w_val in w_dict.items():
+                weights = w_val.to_dict() if hasattr(w_val, 'to_dict') else w_val
                 portfolio = Portfolio(rebalancing_date = rebalancing_date, weights = weights)
                 backtest.append_output(date_key = rebalancing_date,
-                                        output_key = f'weights_{key}',
+                                        output_key = f'weights_{w_key}',
                                         value = pd.Series(portfolio.weights))
         else:
-            if not key in bs.optimization.results.keys():
-                continue
             backtest.append_output(date_key = rebalancing_date,
                                     output_key = key,
                                     value = bs.optimization.results[key])
